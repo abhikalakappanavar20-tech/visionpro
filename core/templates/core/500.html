@@ -1,0 +1,109 @@
+{% extends "core/base.html" %}
+
+{% block title %}500 - Server Error | VeriVision{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="error-page">
+        <div class="error-content">
+            <div class="error-code">500</div>
+            <h1>Server Error</h1>
+            <p>Something went wrong on our end. Please try again later.</p>
+            <div class="error-actions">
+                <a href="{% url 'home' %}" class="btn btn-primary">
+                    <i class="fas fa-home"></i> Go Home
+                </a>
+                <a href="javascript:location.reload()" class="btn btn-secondary">
+                    <i class="fas fa-redo"></i> Try Again
+                </a>
+            </div>
+        </div>
+        <div class="error-visual">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+    </div>
+</div>
+
+<style>
+.error-page {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: center;
+    min-height: 60vh;
+    padding: 3rem 0;
+}
+
+.error-content {
+    text-align: left;
+}
+
+.error-code {
+    font-size: 8rem;
+    font-weight: 700;
+    color: var(--accent-red);
+    line-height: 1;
+    margin-bottom: 1rem;
+}
+
+.error-content h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.error-content p {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+}
+
+.error-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.error-visual {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.error-visual i {
+    font-size: 15rem;
+    color: var(--border-color);
+    opacity: 0.3;
+}
+
+@media (max-width: 768px) {
+    .error-page {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .error-content {
+        text-align: center;
+    }
+
+    .error-code {
+        font-size: 6rem;
+    }
+
+    .error-content h1 {
+        font-size: 2rem;
+    }
+
+    .error-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .error-visual {
+        order: -1;
+    }
+
+    .error-visual i {
+        font-size: 10rem;
+    }
+}
+</style>
+{% endblock %}

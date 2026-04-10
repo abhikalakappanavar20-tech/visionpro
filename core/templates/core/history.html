@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan History - VeriVision</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-shield-alt"></i>
+                <span>VeriVision</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="{% url 'home' %}"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="{% url 'scan' %}"><i class="fas fa-search"></i> Scan</a></li>
+                <li><a href="{% url 'dashboard' %}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+                <li><a href="{% url 'history' %}" class="active"><i class="fas fa-history"></i> History</a></li>
+            </ul>
+{% if user.is_authenticated %}                <li><a href="{% url 'profile' %}"><i class="fas fa-user-circle"></i> {{ user.username }}</a></li>                <li><a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>                {% else %}                <li><a href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Login</a></li>                <li><a href="{% url 'register' %}"><i class="fas fa-user-plus"></i> Register</a></li>                {% endif %}
+            <button class="nav-toggle" id="navToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <div class="page-header">
+                <h1><i class="fas fa-history"></i> Scan History</h1>
+                <p>View all your previous media analyses</p>
+            </div>
+
+            <!-- Filters -->
+            <div class="filters">
+                <form method="get" class="filter-form">
+                    <div class="filter-group">
+                        <label for="resultFilter">Result:</label>
+                        <select name="result" id="resultFilter">
+                            <option value="">All Results</option>
+                            <option value="real" {% if result_filter == 'real' %}selected{% endif %}>Real</option>
+                            <option value="fake" {% if result_filter == 'fake' %}selected{% endif %}>Fake</option>
+                            <option value="manipulated" {% if result_filter == 'manipulated' %}selected{% endif %}>Manipulated</option>
+                            <option value="suspicious" {% if result_filter == 'suspicious' %}selected{% endif %}>Suspicious</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="typeFilter">Type:</label>
+                        <select name="type" id="typeFilter">
+                            <option value="">All Types</option>
+                            <option value="image" {% if type_filter == 'image' %}selected{% endif %}>Image</option>
+                            <option value="video" {% if type_filter == 'video' %}selected{% endif %}>Video</option>
+                            <option value="audio" {% if type_filter == 'audio' %}selected{% endif %}>Audio</option>
+                            <option value="url" {% if type_filter == 'url' %}selected{% endif %}>URL</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-secondary">
+                        <i class="fas fa-filter"></i> Apply Filters
+                    </button>
+
+                    {% if result_filter or type_filter %}
+                    <a href="{% url 'history' %}" class="btn btn-outline">
+                        <i class="fas fa-times"></i> Clear
+                    </a>
+                    {% endif %}
+                </form>
+            </div>
+
+            <!-- History Table -->
+            <div class="history-table-container">
+                {% if page_obj %}
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Type</th>
+                            <th>Content</th>
+                            <th>Result</th>
+                            <th>Confidence</th>
+                            <th>Trust Score</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for scan in page_obj %}
+                        <tr>
+                            <td>#{{ scan.id }}</td>
+                            <td>
+                                <i class="fas fa-{% if scan.file_type == 'image' %}file-image{% elif scan.file_type == 'video' %}file-video{% elif scan.file_type == 'audio' %}file-audio{% else %}link{% endif %}"></i>
+                                {{ scan.file_type|title }}
+                            </td>
+                            <td>
+                                {% if scan.original_filename %}
+                                    {{ scan.original_filename|truncatechars:30 }}
+                                {% elif scan.url %}
+                                    {{ scan.url|truncatechars:30 }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge badge-{{ scan.scan_result }}">{{ scan.scan_result|title }}</span>
+                            </td>
+                            <td>{{ scan.confidence_score }}%</td>
+                            <td>
+                                <span class="{% if scan.trust_score >= 80 %}text-success{% elif scan.trust_score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ scan.trust_score }}/100
+                                </span>
+                            </td>
+                            <td>{{ scan.created_at|timesince }} ago</td>
+                            <td>
+                                <a href="{% url 'result' scan.id %}" class="btn-view">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <div class="pagination">
+                    {% if page_obj.has_previous %}
+                        <a href="?page=1{% if result_filter %}&result={{ result_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="pagination-btn">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                        <a href="?page={{ page_obj.previous_page_number }}{% if result_filter %}&result={{ result_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="pagination-btn">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    {% endif %}
+
+                    <span class="pagination-info">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}{% if result_filter %}&result={{ result_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="pagination-btn">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                        <a href="?page={{ page_obj.paginator.num_pages }}{% if result_filter %}&result={{ result_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="pagination-btn">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox fa-4x"></i>
+                    <h3>No scans found</h3>
+                    <p>You haven't performed any scans yet.</p>
+                    <a href="{% url 'scan' %}" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Start Your First Scan
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 VeriVision. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

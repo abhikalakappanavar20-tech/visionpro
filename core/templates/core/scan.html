@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan Media - VeriVision</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/loading-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-shield-alt"></i>
+                <span>VeriVision</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="{% url 'home' %}"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="{% url 'scan' %}" class="active"><i class="fas fa-search"></i> Scan</a></li>
+                <li><a href="{% url 'dashboard' %}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+                <li><a href="{% url 'history' %}"><i class="fas fa-history"></i> History</a></li>
+            </ul>
+{% if user.is_authenticated %}                <li><a href="{% url 'profile' %}"><i class="fas fa-user-circle"></i> {{ user.username }}</a></li>                <li><a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>                {% else %}                <li><a href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Login</a></li>                <li><a href="{% url 'register' %}"><i class="fas fa-user-plus"></i> Register</a></li>                {% endif %}
+            <button class="nav-toggle" id="navToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <div class="page-header">
+                <h1><i class="fas fa-search"></i> Media Analysis Scanner</h1>
+                <p>Upload files or provide URLs for deepfake detection</p>
+            </div>
+
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {% if message.tags == 'success' %}
+                        <i class="fas fa-check-circle"></i>
+                    {% else %}
+                        <i class="fas fa-exclamation-circle"></i>
+                    {% endif %}
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Scan Type Selector -->
+            <div class="scan-type-selector">
+                <button class="scan-type-btn active" data-type="file">
+                    <i class="fas fa-file-upload"></i> File Upload
+                </button>
+                <button class="scan-type-btn" data-type="url">
+                    <i class="fas fa-link"></i> URL Analysis
+                </button>
+            </div>
+
+            <!-- File Upload Section -->
+            <div class="scan-section" id="fileSection">
+                <div class="upload-card">
+                    <form method="post" enctype="multipart/form-data" class="upload-form" id="uploadForm">
+                        {% csrf_token %}
+
+                        <div class="upload-zone" id="uploadZone">
+                            <div class="upload-icon">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                            </div>
+                            <h3>Drag & Drop Media File</h3>
+                            <p>or click to browse</p>
+
+                            <div class="file-input-wrapper">
+                                {{ form.file }}
+                            </div>
+
+                            <div class="accepted-formats">
+                                <p>Accepted formats:</p>
+                                <div class="format-tags">
+                                    <span class="format-tag">JPG</span>
+                                    <span class="format-tag">PNG</span>
+                                    <span class="format-tag">WEBP</span>
+                                    <span class="format-tag">MP4</span>
+                                    <span class="format-tag">WEBM</span>
+                                    <span class="format-tag">AVI</span>
+                                    <span class="format-tag">MOV</span>
+                                    <span class="format-tag">WAV</span>
+                                    <span class="format-tag">MP3</span>
+                                </div>
+                            </div>
+
+                            <div class="upload-limits">
+                                <i class="fas fa-info-circle"></i> Maximum file size: 5GB
+                            </div>
+                        </div>
+
+                        <div class="selected-file" id="selectedFile" style="display: none;">
+                            <div class="file-preview">
+                                <i class="fas fa-file"></i>
+                                <div class="file-info">
+                                    <span class="file-name" id="fileName">filename.jpg</span>
+                                    <span class="file-size" id="fileSize">2.5 MB</span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-remove-file" id="removeFile">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                                <i class="fas fa-search"></i> Analyze Media
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- URL Section -->
+            <div class="scan-section" id="urlSection" style="display: none;">
+                <div class="url-card">
+                    <form method="post" action="{% url 'scan' %}" class="url-form">
+                        {% csrf_token %}
+
+                        <div class="url-input-group">
+                            <label for="urlInput">
+                                <i class="fas fa-link"></i> Social Media URL
+                            </label>
+                            <input type="url" name="url" id="urlInput" placeholder="https://twitter.com/user/status/..." required>
+                            <small class="form-hint">Enter a post URL from Twitter, Facebook, Instagram, YouTube, TikTok, or Reddit</small>
+                        </div>
+
+                        <div class="supported-platforms-large">
+                            <h4>Supported Platforms</h4>
+                            <div class="platform-grid">
+                                <div class="platform-item">
+                                    <i class="fab fa-twitter"></i>
+                                    <span>Twitter / X</span>
+                                </div>
+                                <div class="platform-item">
+                                    <i class="fab fa-facebook"></i>
+                                    <span>Facebook</span>
+                                </div>
+                                <div class="platform-item">
+                                    <i class="fab fa-instagram"></i>
+                                    <span>Instagram</span>
+                                </div>
+                                <div class="platform-item">
+                                    <i class="fab fa-youtube"></i>
+                                    <span>YouTube</span>
+                                </div>
+                                <div class="platform-item">
+                                    <i class="fab fa-tiktok"></i>
+                                    <span>TikTok</span>
+                                </div>
+                                <div class="platform-item">
+                                    <i class="fab fa-reddit"></i>
+                                    <span>Reddit</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-search"></i> Analyze URL
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Analysis Process Info -->
+            <div class="process-info">
+                <h3><i class="fas fa-cogs"></i> Analysis Process</h3>
+                <div class="process-steps">
+                    <div class="process-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>File Upload</h4>
+                            <p>Secure upload of media files to our analysis servers</p>
+                        </div>
+                    </div>
+                    <div class="process-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>AI Analysis</h4>
+                            <p>Multi-stage deepfake detection using advanced AI models</p>
+                        </div>
+                    </div>
+                    <div class="process-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>XAI Visualization</h4>
+                            <p>Generate heatmaps showing manipulation regions</p>
+                        </div>
+                    </div>
+                    <div class="process-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h4>Trust Scoring</h4>
+                            <p>Calculate comprehensive trust scores and forensic data</p>
+                        </div>
+                    </div>
+                    <div class="process-step">
+                        <div class="step-number">5</div>
+                        <div class="step-content">
+                            <h4>Results</h4>
+                            <p>Detailed report with actionable insights</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 VeriVision. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Analysis Loading Overlay -->
+    <div id="analysisLoading" class="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <h2>Analysis in Progress...</h2>
+            <p>Please wait while we analyze your media. This may take 10-30 seconds.</p>
+            <p class="loading-tips">
+                <i class="fas fa-info-circle"></i>
+                Tip: Please don't close this window while analysis is running.
+            </p>
+        </div>
+    </div>
+
+    <script src="/static/js/scan.js"></script>
+    <script>
+        // Show loading indicator during form submission
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadForm = document.getElementById('uploadForm');
+            const loadingOverlay = document.getElementById('analysisLoading');
+
+            if (uploadForm) {
+                uploadForm.addEventListener('submit', function(e) {
+                    // Show loading overlay
+                    loadingOverlay.style.display = 'flex';
+
+                    // Warn user before navigating away
+                    window.addEventListener('beforeunload', function(e) {
+                        e.preventDefault();
+                        e.returnValue = 'Analysis is in progress. Are you sure you want to leave?';
+                        return e.returnValue;
+                    });
+
+                    // Hide loading overlay after successful submission
+                    // (the form will be submitted normally and redirect)
+                });
+            }
+
+            // Drag and drop handlers
+            const uploadZone = document.getElementById('uploadZone');
+            const fileInput = document.querySelector('input[type="file"]');
+
+            if (uploadZone && fileInput) {
+                uploadZone.addEventListener('click', () => {
+                    fileInput.click();
+                });
+
+                uploadZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadZone.classList.add('drag-over');
+                });
+
+                uploadZone.addEventListener('dragleave', () => {
+                    uploadZone.classList.remove('drag-over');
+                });
+
+                uploadZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadZone.classList.remove('drag-over');
+
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        fileInput.files = files;
+                        // Trigger file input change event
+                        const event = new Event('change');
+                        fileInput.dispatchEvent(event);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

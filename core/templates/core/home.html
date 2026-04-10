@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="VeriVision - Advanced Deepfake Detection Platform powered by Explainable AI">
+    <title>VeriVision - Deepfake Detection Platform</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Manifest disabled - icon files not available -->
+    <!-- <link rel="manifest" href="/static/manifest.json"> -->
+    <meta name="theme-color" content="#0a0e27">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-shield-alt"></i>
+                <span>VeriVision</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="{% url 'home' %}" class="active"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="{% url 'scan' %}"><i class="fas fa-upload"></i> Upload</a></li>
+                <li><a href="{% url 'webcam' %}"><i class="fas fa-camera"></i> Webcam</a></li>
+                <li><a href="{% url 'dashboard' %}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+                <li><a href="{% url 'history' %}"><i class="fas fa-history"></i> History</a></li>
+                {% if user.is_authenticated %}
+                <li><a href="{% url 'profile' %}"><i class="fas fa-user-circle"></i> {{ user.username }}</a></li>
+                <li><a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                {% else %}
+                <li><a href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+                <li><a href="{% url 'register' %}"><i class="fas fa-user-plus"></i> Register</a></li>
+                {% endif %}
+            </ul>
+            <button class="nav-toggle" id="navToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1>Detect Digital Deception with <span class="gradient-text">AI Precision</span></h1>
+                    <p class="hero-subtitle">Advanced deepfake detection powered by Explainable AI. Upload images, videos, audio, or analyze social media URLs instantly.</p>
+
+                    <div class="cta-buttons">
+                        <a href="{% url 'scan' %}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-upload"></i> Upload File
+                        </a>
+                        <a href="{% url 'webcam' %}" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-camera"></i> Use Webcam
+                        </a>
+                        <a href="{% url 'dashboard' %}" class="btn btn-outline btn-lg">
+                            <i class="fas fa-chart-bar"></i> View Analytics
+                        </a>
+                    </div>
+
+                    <div class="features-grid">
+                        <div class="feature-item">
+                            <i class="fas fa-brain"></i>
+                            <span>AI-Powered Analysis</span>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-fire"></i>
+                            <span>XAI Heatmap Visualization</span>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-database"></i>
+                            <span>Forensic Database</span>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-link"></i>
+                            <span>Social Media Scanner</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hero-visual">
+                    <div class="scanner-preview">
+                        <div class="scan-ring"></div>
+                        <div class="scan-ring"></div>
+                        <div class="scan-ring"></div>
+                        <i class="fas fa-eye"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Scan Section -->
+    <section class="quick-scan">
+        <div class="container">
+            <div class="quick-scan-card">
+                <h2><i class="fas fa-bolt"></i> Quick URL Scan</h2>
+                <p>Paste a social media URL to instantly check its authenticity</p>
+
+                <form method="post" action="{% url 'scan_url' %}" class="quick-scan-form">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <input type="url" name="url" placeholder="https://twitter.com/user/status/..." required>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Analyze
+                        </button>
+                    </div>
+                </form>
+
+                <div class="supported-platforms">
+                    <span>Supported:</span>
+                    <i class="fab fa-twitter" title="Twitter/X"></i>
+                    <i class="fab fa-facebook" title="Facebook"></i>
+                    <i class="fab fa-instagram" title="Instagram"></i>
+                    <i class="fab fa-youtube" title="YouTube"></i>
+                    <i class="fab fa-tiktok" title="TikTok"></i>
+                    <i class="fab fa-reddit" title="Reddit"></i>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats-section">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-search-plus"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ total_scans }}+</h3>
+                        <p>Total Scans</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>98.4%</h3>
+                        <p>Accuracy Rate</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>< 30s</h3>
+                        <p>Avg Analysis Time</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>24/7</h3>
+                        <p>Global Availability</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features-section">
+        <div class="container">
+            <h2 class="section-title">Powerful Features</h2>
+            <p class="section-subtitle">Comprehensive tools to combat digital deception</p>
+
+            <div class="features-grid-expanded">
+                <div class="feature-card">
+                    <div class="feature-card-icon">
+                        <i class="fas fa-image"></i>
+                    </div>
+                    <h3>Multi-Modal Detection</h3>
+                    <p>Analyze images, videos, and audio files with specialized AI models for each media type.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-card-icon">
+                        <i class="fas fa-fire-alt"></i>
+                    </div>
+                    <h3>XAI Heatmaps</h3>
+                    <p>Visual explanations showing exactly which regions of media have been manipulated.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-card-icon">
+                        <i class="fas fa-fingerprint"></i>
+                    </div>
+                    <h3>Forensic History</h3>
+                    <p>Check if content has been used before in known disinformation campaigns.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-card-icon">
+                        <i class="fas fa-link"></i>
+                    </div>
+                    <h3>Social Media Scanner</h3>
+                    <p>Analyze social media URLs for authenticity and domain trust scoring.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-card-icon">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <h3>Trust Scores</h3>
+                    <p>Get comprehensive trust scores combining multiple detection metrics.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-card-icon">
+                        <i class="fas fa-flag"></i>
+                    </div>
+                    <h3>Report Content</h3>
+                    <p>Report suspicious content for expert review and community protection.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Recent Scans -->
+    {% if recent_scans %}
+    <section class="recent-scans-section">
+        <div class="container">
+            <h2 class="section-title">Recent Scans</h2>
+            <div class="recent-scans-grid">
+                {% for scan in recent_scans %}
+                <div class="recent-scan-card">
+                    <div class="scan-badge scan-badge-{{ scan.scan_result }}">
+                        {{ scan.scan_result|title }}
+                    </div>
+                    <div class="scan-info">
+                        <span class="scan-type">
+                            <i class="fas fa-{{ 'file-image' }}">&nbsp;</i> {{ scan.file_type|title }}
+                        </span>
+                        <span class="scan-confidence">{{ scan.confidence_score }}%</span>
+                    </div>
+                    <div class="scan-time">{{ scan.created_at|timesince }} ago</div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="text-center" style="margin-top: 2rem;">
+                <a href="{% url 'history' %}" class="btn btn-secondary">
+                    View All History <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>VeriVision</span>
+                    <p>Fighting digital deception with AI-powered detection.</p>
+                </div>
+
+                <div class="footer-links">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="{% url 'home' %}">Home</a></li>
+                        <li><a href="{% url 'scan' %}">Scan</a></li>
+                        <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                        <li><a href="{% url 'history' %}">History</a></li>
+                    </ul>
+{% if user.is_authenticated %}                <li><a href="{% url 'profile' %}"><i class="fas fa-user-circle"></i> {{ user.username }}</a></li>                <li><a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>                {% else %}                <li><a href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Login</a></li>                <li><a href="{% url 'register' %}"><i class="fas fa-user-plus"></i> Register</a></li>                {% endif %}
+                </div>
+
+                <div class="footer-links">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="#">Documentation</a></li>
+                        <li><a href="#">API Access</a></li>
+                        <li><a href="{% url 'report' %}">Report Content</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+{% if user.is_authenticated %}                <li><a href="{% url 'profile' %}"><i class="fas fa-user-circle"></i> {{ user.username }}</a></li>                <li><a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>                {% else %}                <li><a href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Login</a></li>                <li><a href="{% url 'register' %}"><i class="fas fa-user-plus"></i> Register</a></li>                {% endif %}
+                </div>
+
+                <div class="footer-social">
+                    <h4>Connect</h4>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-github"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                        <a href="#"><i class="fab fa-discord"></i></a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2024 VeriVision. All rights reserved. | Powered by Explainable AI</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

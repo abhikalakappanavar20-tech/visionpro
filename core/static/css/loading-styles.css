@@ -1,0 +1,71 @@
+/* Loading Overlay Styles */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 14, 39, 0.95);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(10px);
+}
+
+.loading-content {
+    text-align: center;
+    color: var(--text-primary);
+    padding: 2rem;
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    max-width: 400px;
+}
+
+.loading-content h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.loading-content p {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.loading-tips {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: rgba(0, 212, 255, 0.1);
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+}
+
+.spinner {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 1.5rem;
+    border: 4px solid rgba(0, 212, 255, 0.3);
+    border-top-color: var(--accent-cyan);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Drag and drop styles */
+.upload-zone.drag-over {
+    border-color: var(--accent-cyan) !important;
+    background: rgba(0, 212, 255, 0.1) !important;
+    transform: scale(1.02);
+}
+
+.upload-zone.drag-over .upload-icon {
+    color: var(--accent-cyan);
+    transform: scale(1.1);
+}

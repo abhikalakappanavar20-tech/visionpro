@@ -1,0 +1,8 @@
+# Ignore media folder
+media/
+
+# Ignore video files
+*.mp4
+*.avi
+*.mov
+*.mkv

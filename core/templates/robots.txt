@@ -1,0 +1,14 @@
+# VeriVision Robots.txt
+# Allow all crawlers
+
+User-agent: *
+Allow: /
+
+# Disallow admin panel
+Disallow: /admin/
+
+# Disallow API endpoints
+Disallow: /api/
+
+# Sitemap location (optional - uncomment if you create one)
+# Sitemap: https://yourdomain.com/sitemap.xml

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - VeriVision</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-shield-alt"></i>
+                <span>VeriVision</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="{% url 'home' %}"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="{% url 'scan' %}"><i class="fas fa-search"></i> Scan</a></li>
+                <li><a href="{% url 'dashboard' %}" class="active"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+                <li><a href="{% url 'history' %}"><i class="fas fa-history"></i> History</a></li>
+            </ul>
+{% if user.is_authenticated %}                <li><a href="{% url 'profile' %}"><i class="fas fa-user-circle"></i> {{ user.username }}</a></li>                <li><a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>                {% else %}                <li><a href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Login</a></li>                <li><a href="{% url 'register' %}"><i class="fas fa-user-plus"></i> Register</a></li>                {% endif %}
+            <button class="nav-toggle" id="navToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <div class="page-header">
+                <h1><i class="fas fa-chart-line"></i> Analytics Dashboard</h1>
+                <p>Real-time deepfake detection analytics and insights</p>
+            </div>
+
+            <!-- Stats Overview -->
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-icon stat-blue">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ total_scans }}</h3>
+                        <p>Total Scans</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon stat-green">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ result_counts.real|default:0 }}</h3>
+                        <p>Real Content</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon stat-red">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ result_counts.fake|default:0 }}</h3>
+                        <p>Fake Content</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon stat-yellow">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ pending_reports }}</h3>
+                        <p>Pending Reports</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="charts-grid">
+                <!-- Scan Results Pie Chart -->
+                <div class="chart-card">
+                    <h3><i class="fas fa-chart-pie"></i> Scan Results Distribution</h3>
+                    <canvas id="resultsChart"></canvas>
+                </div>
+
+                <!-- File Type Distribution -->
+                <div class="chart-card">
+                    <h3><i class="fas fa-chart-bar"></i> Content Type Analysis</h3>
+                    <canvas id="typeChart"></canvas>
+                </div>
+
+                <!-- Time Series Line Chart -->
+                <div class="chart-card chart-full">
+                    <h3><i class="fas fa-chart-line"></i> Scan Trends (Last 30 Days)</h3>
+                    <canvas id="trendsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="metrics-section">
+                <h3><i class="fas fa-tachometer-alt"></i> Performance Metrics</h3>
+
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-label">Average AI Confidence</div>
+                        <div class="metric-value">{{ avg_confidence }}%</div>
+                        <div class="metric-bar">
+                            <div class="metric-fill" style="width: {{ avg_confidence }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-item">
+                        <div class="metric-label">Average Trust Score</div>
+                        <div class="metric-value">{{ avg_trust }}/100</div>
+                        <div class="metric-bar">
+                            <div class="metric-fill" style="width: {{ avg_trust }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-item">
+                        <div class="metric-label">Forensic Match Rate</div>
+                        <div class="metric-value">{{ forensic_rate }}%</div>
+                        <div class="metric-bar">
+                            <div class="metric-fill metric-warning" style="width: {{ forensic_rate }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-item">
+                        <div class="metric-label">Recent Activity (30 days)</div>
+                        <div class="metric-value">{{ recent_scans }}</div>
+                        <div class="metric-bar">
+                            <div class="metric-fill metric-info" style="width: {{ recent_scans|floatformat:0 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+                <div class="action-buttons">
+                    <a href="{% url 'scan' %}" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> New Scan
+                    </a>
+                    <a href="{% url 'history' %}" class="btn btn-secondary">
+                        <i class="fas fa-history"></i> View History
+                    </a>
+                    <a href="{% url 'report' %}" class="btn btn-outline">
+                        <i class="fas fa-flag"></i> Report Content
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 VeriVision. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Pass Django data to JavaScript
+        const dashboardData = {
+            resultCounts: {
+                real: {{ result_counts.real|default:0 }},
+                fake: {{ result_counts.fake|default:0 }},
+                manipulated: {{ result_counts.manipulated|default:0 }},
+                suspicious: {{ result_counts.suspicious|default:0 }}
+            },
+            typeCounts: {
+                image: {{ type_counts.image|default:0 }},
+                video: {{ type_counts.video|default:0 }},
+                audio: {{ type_counts.audio|default:0 }},
+                url: {{ type_counts.url|default:0 }}
+            },
+            timeSeries: [
+                {% for item in time_series %}
+                {
+                    date: '{{ item.date }}',
+                    count: {{ item.count }}
+                }{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ]
+        };
+    </script>
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

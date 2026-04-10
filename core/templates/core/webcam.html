@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Scanner - VeriVision</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .webcam-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            box-shadow: 0 10px 40px rgba(0, 212, 255, 0.2);
+        }
+
+        #webcamVideo {
+            width: 100%;
+            height: auto;
+            display: block;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        #captureCanvas {
+            display: none;
+        }
+
+        .countdown-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 120px;
+            font-weight: bold;
+            color: #00d4ff;
+            z-index: 10;
+        }
+
+        .flash-effect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            opacity: 0.8;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        .controls-section {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .control-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .control-buttons .btn {
+            min-width: 160px;
+            padding: 12px 24px;
+            font-size: 16px;
+        }
+
+        .mode-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            padding: 10px 20px;
+            border: 2px solid #00d4ff;
+            background: transparent;
+            color: #00d4ff;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .mode-btn.active {
+            background: #00d4ff;
+            color: #0a0e27;
+        }
+
+        .mode-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .recording-indicator {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            font-size: 18px;
+            color: #ff3b30;
+        }
+
+        .recording-dot {
+            width: 12px;
+            height: 12px;
+            background: #ff3b30;
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .preview-section {
+            display: none;
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(0, 212, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .preview-section.active {
+            display: block;
+        }
+
+        #previewImage, #previewVideo {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .preview-info {
+            color: #00d4ff;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 14, 39, 0.95);
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-content {
+            text-align: center;
+            color: #00d4ff;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(0, 212, 255, 0.3);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-message {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            color: #00d4ff;
+        }
+
+        .feature-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .feature-card {
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .feature-card i {
+            font-size: 32px;
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        .feature-card h3 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            color: #b0b8c4;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .control-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .control-buttons .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            .countdown-overlay {
+                font-size: 80px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-shield-alt"></i>
+                <span>VeriVision</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="{% url 'home' %}"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="{% url 'scan' %}"><i class="fas fa-upload"></i> Upload</a></li>
+                <li><a href="{% url 'webcam' %}" class="active"><i class="fas fa-camera"></i> Webcam</a></li>
+                <li><a href="{% url 'dashboard' %}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+                <li><a href="{% url 'history' %}"><i class="fas fa-history"></i> History</a></li>
+            </ul>
+            {% if user.is_authenticated %}
+                <li><a href="{% url 'profile' %}"><i class="fas fa-user-circle"></i> {{ user.username }}</a></li>
+                <li><a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            {% else %}
+                <li><a href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+                <li><a href="{% url 'register' %}"><i class="fas fa-user-plus"></i> Register</a></li>
+            {% endif %}
+            <button class="nav-toggle" id="navToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <div class="page-header">
+                <h1><i class="fas fa-camera"></i> Webcam Scanner</h1>
+                <p>Capture photos or videos directly from your camera for instant deepfake detection</p>
+            </div>
+
+            <!-- Feature Cards -->
+            <div class="feature-cards">
+                <div class="feature-card">
+                    <i class="fas fa-bolt"></i>
+                    <h3>Instant Capture</h3>
+                    <p>Capture photos in real-time with countdown timer</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-video"></i>
+                    <h3>Video Recording</h3>
+                    <p>Record videos up to 30 seconds for analysis</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-search"></i>
+                    <h3>Live Analysis</h3>
+                    <p>Get instant forensic analysis results</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-shield-alt"></i>
+                    <h3>Privacy First</h3>
+                    <p>All processing happens on your server</p>
+                </div>
+            </div>
+
+            <!-- Status Messages -->
+            <div id="statusMessage" class="status-message" style="display: none;">
+                <i class="fas fa-info-circle"></i>
+                <span id="statusText"></span>
+            </div>
+
+            <!-- Camera Mode Selector -->
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="photo" onclick="setMode('photo')">
+                    <i class="fas fa-camera"></i> Photo Mode
+                </button>
+                <button class="mode-btn" data-mode="video" onclick="setMode('video')">
+                    <i class="fas fa-video"></i> Video Mode
+                </button>
+            </div>
+
+            <!-- Video Wrapper -->
+            <div class="video-wrapper">
+                <video id="webcamVideo" autoplay playsinline></video>
+                <canvas id="captureCanvas"></canvas>
+                <div id="countdownOverlay" class="countdown-overlay" style="display: none;"></div>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls-section">
+                <div class="control-buttons">
+                    <!-- Photo Mode Controls -->
+                    <div id="photoControls">
+                        <button id="startCameraBtn" class="btn btn-primary" onclick="startCamera()">
+                            <i class="fas fa-power-off"></i> Start Camera
+                        </button>
+                        <button id="capturePhotoBtn" class="btn btn-secondary" onclick="capturePhoto()" style="display: none;">
+                            <i class="fas fa-camera"></i> Capture Photo
+                        </button>
+                        <button id="countdownBtn" class="btn btn-outline" onclick="captureWithCountdown()" style="display: none;">
+                            <i class="fas fa-clock"></i> Countdown (3s)
+                        </button>
+                    </div>
+
+                    <!-- Video Mode Controls -->
+                    <div id="videoControls" style="display: none;">
+                        <button id="startCameraVideoBtn" class="btn btn-primary" onclick="startCamera()">
+                            <i class="fas fa-power-off"></i> Start Camera
+                        </button>
+                        <button id="startRecordingBtn" class="btn btn-secondary" onclick="startRecording()" style="display: none;">
+                            <i class="fas fa-circle"></i> Start Recording
+                        </button>
+                        <button id="stopRecordingBtn" class="btn btn-danger" onclick="stopRecording()" style="display: none;">
+                            <i class="fas fa-stop"></i> Stop Recording
+                        </button>
+                    </div>
+
+                    <!-- Analyze Button -->
+                    <button id="analyzeBtn" class="btn btn-success" onclick="analyzeCapture()" style="display: none;">
+                        <i class="fas fa-search"></i> Analyze
+                    </button>
+
+                    <!-- Retake Button -->
+                    <button id="retakeBtn" class="btn btn-outline" onclick="retakeCapture()" style="display: none;">
+                        <i class="fas fa-redo"></i> Retake
+                    </button>
+                </div>
+
+                <!-- Recording Indicator -->
+                <div id="recordingIndicator" class="recording-indicator">
+                    <div class="recording-dot"></div>
+                    <span id="recordingTime">Recording: 0s / 30s</span>
+                </div>
+            </div>
+
+            <!-- Preview Section -->
+            <div id="previewSection" class="preview-section">
+                <h3><i class="fas fa-eye"></i> Capture Preview</h3>
+                <div id="imagePreview">
+                    <img id="previewImage" alt="Captured photo">
+                </div>
+                <div id="videoPreview" style="display: none;">
+                    <video id="previewVideo" controls></video>
+                </div>
+                <p id="previewInfo" class="preview-info"></p>
+            </div>
+
+            <!-- Info Section -->
+            <div class="info-section">
+                <h3><i class="fas fa-info-circle"></i> How It Works</h3>
+                <ol>
+                    <li><strong>Start Camera</strong> - Allow browser camera access when prompted</li>
+                    <li><strong>Capture Content</strong> - Take a photo or record a video</li>
+                    <li><strong>Preview</strong> - Review your capture before analysis</li>
+                    <li><strong>Analyze</strong> - Click "Analyze" to run deepfake detection</li>
+                    <li><strong>Results</strong> - Get detailed forensic analysis report</li>
+                </ol>
+                <div class="alert alert-warning" style="margin-top: 20px;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Privacy Note:</strong> Your camera feed is processed locally. Captured content is sent to your server for analysis only.
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h2>Analyzing Capture...</h2>
+            <p>Please wait while we process your content</p>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 VeriVision. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- CSRF Token for AJAX -->
+    {% csrf_token %}
+    <script>
+        // Get CSRF token
+        function getCsrfToken() {
+            return document.querySelector('[name=csrfmiddlewaretoken]').value;
+        }
+    </script>
+    <script src="/static/js/webcam.js"></script>
+</body>
+</html>
