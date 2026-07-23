@@ -1,0 +1,62 @@
+{% extends "core/admin_panel/base_admin.html" %}
+
+{% block admin_content %}
+<h1>Reported Content</h1>
+<p class="subtitle">Review and moderate user-submitted reports.</p>
+
+<form method="get" class="filter-bar">
+    <select name="status">
+        <option value="">All Statuses</option>
+        {% for code, label in status_choices %}
+        <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn-admin primary"><i class="fas fa-filter"></i> Apply</button>
+    {% if status_filter %}<a href="{% url 'admin_panel_reports' %}" class="btn-admin">Clear</a>{% endif %}
+</form>
+
+<div class="admin-card">
+    {% if page_obj.object_list %}
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>ID</th><th>Content</th><th>Type</th><th>Reason</th>
+                <th>Status</th><th>Reporter</th><th>When</th><th>Update</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in page_obj.object_list %}
+            <tr>
+                <td>#{{ r.id }}</td>
+                <td>{{ r.url_or_file_name|truncatechars:40 }}</td>
+                <td>{{ r.get_file_type_display }}</td>
+                <td>{{ r.reason|truncatechars:60 }}</td>
+                <td><span class="pill {{ r.status }}">{{ r.get_status_display }}</span></td>
+                <td>{{ r.reporter_email|default:"—" }}</td>
+                <td>{{ r.created_at|date:"M d, H:i" }}</td>
+                <td>
+                    <form method="post" action="{% url 'admin_panel_report_action' r.id %}" style="display:flex; gap:6px;">
+                        {% csrf_token %}
+                        <select name="status">
+                            {% for code, label in status_choices %}
+                            <option value="{{ code }}" {% if r.status == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn-admin primary">Save</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="pagination-bar">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">‹ Prev</a>{% endif %}
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} reports)
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next ›</a>{% endif %}
+    </div>
+    {% else %}
+    <div class="empty">No reports match this filter.</div>
+    {% endif %}
+</div>
+{% endblock %}

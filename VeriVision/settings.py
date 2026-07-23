@@ -13,12 +13,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-verivision-deepfake-detection-ai-platform-2024'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-verivision-deepfake-detection-ai-platform-2024')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
 
 
 # Application definition
@@ -69,10 +69,18 @@ WSGI_APPLICATION = 'VeriVision.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('NEON_DB_NAME', 'neondb'),
+        'USER': os.environ.get('NEON_DB_USER', 'neondb_owner'),
+        'PASSWORD': os.environ.get('NEON_DB_PASSWORD', ''),
+        'HOST': os.environ.get('NEON_DB_HOST', 'ep-xxx.us-east-2.aws.neon.tech'),
+        'PORT': os.environ.get('NEON_DB_PORT', '5432'),
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
     }
 }
+
 
 
 # Password validation
@@ -110,6 +118,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / 'core' / 'static',
 ]
@@ -135,3 +144,7 @@ CONN_MAX_AGE = 600  # 10 minutes (increased from default 300)
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
+
+# Vercel Deployment Settings
+WHITENOISE_USE_FINDERS = True
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'

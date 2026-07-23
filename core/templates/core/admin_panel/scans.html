@@ -1,0 +1,72 @@
+{% extends "core/admin_panel/base_admin.html" %}
+
+{% block admin_content %}
+<h1>All Scans</h1>
+<p class="subtitle">Every scan ever performed, across all users.</p>
+
+<form method="get" class="filter-bar">
+    <input type="text" name="q" placeholder="Filename or URL" value="{{ q }}">
+    <select name="result">
+        <option value="">All Results</option>
+        <option value="real" {% if result_filter == 'real' %}selected{% endif %}>Real</option>
+        <option value="suspicious" {% if result_filter == 'suspicious' %}selected{% endif %}>Suspicious</option>
+        <option value="fake" {% if result_filter == 'fake' %}selected{% endif %}>Fake</option>
+    </select>
+    <select name="type">
+        <option value="">All Types</option>
+        <option value="image" {% if type_filter == 'image' %}selected{% endif %}>Image</option>
+        <option value="video" {% if type_filter == 'video' %}selected{% endif %}>Video</option>
+        <option value="audio" {% if type_filter == 'audio' %}selected{% endif %}>Audio</option>
+        <option value="url" {% if type_filter == 'url' %}selected{% endif %}>URL</option>
+    </select>
+    <button type="submit" class="btn-admin primary"><i class="fas fa-filter"></i> Apply</button>
+    {% if q or result_filter or type_filter %}<a href="{% url 'admin_panel_scans' %}" class="btn-admin">Clear</a>{% endif %}
+</form>
+
+<div class="admin-card">
+    {% if page_obj.object_list %}
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>ID</th><th>Type</th><th>Result</th><th>Confidence</th>
+                <th>Trust</th><th>File / URL</th><th>IP</th><th>When</th><th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in page_obj.object_list %}
+            <tr>
+                <td>#{{ s.id }}</td>
+                <td>{{ s.get_file_type_display }}</td>
+                <td><span class="pill {{ s.scan_result }}">{{ s.scan_result }}</span></td>
+                <td>{{ s.confidence_score }}%</td>
+                <td>{{ s.trust_score }}</td>
+                <td>{{ s.original_filename|default:s.url|default:"—"|truncatechars:42 }}</td>
+                <td><code style="font-size:11px;color:#8b93b8;">{{ s.ip_address|default:"—" }}</code></td>
+                <td>{{ s.created_at|date:"M d, H:i" }}</td>
+                <td>
+                    <a href="{% url 'result' s.id %}" class="btn-admin">View</a>
+                    <form method="post" action="{% url 'admin_panel_scan_delete' s.id %}" style="display:inline;"
+                          onsubmit="return confirm('Delete scan #{{ s.id }}?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-admin danger"><i class="fas fa-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="pagination-bar">
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if result_filter %}&result={{ result_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}">‹ Prev</a>
+        {% endif %}
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} scans)
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if result_filter %}&result={{ result_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}">Next ›</a>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="empty">No scans match this filter.</div>
+    {% endif %}
+</div>
+{% endblock %}

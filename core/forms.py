@@ -3,9 +3,37 @@ Forms for VeriVision
 """
 from django import forms
 from django.core.validators import URLValidator
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm, PasswordChangeForm
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
-from .models import MediaScan, ReportedContent
+from django.contrib.auth import password_validation
+from .models import MediaScan, ReportedContent, UserSecurityProfile
+
+
+class EmailOrUsernameAuthenticationForm(AuthenticationForm):
+    username = forms.CharField(
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter your username or email',
+            'autofocus': True
+        }),
+        label='Username or Email'
+    )
+
+    def clean(self):
+        username = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+        UserModel = get_user_model()
+
+        if username and password and '@' in username:
+            try:
+                user = UserModel.objects.get(email__iexact=username)
+                self.cleaned_data['username'] = user.get_username()
+            except UserModel.DoesNotExist:
+                pass
+
+        return super().clean()
 
 
 class MediaUploadForm(forms.ModelForm):
@@ -14,7 +42,7 @@ class MediaUploadForm(forms.ModelForm):
     ACCEPTED_FILE_TYPES = [
         '.jpg', '.jpeg', '.png', '.gif', '.webp',  # Images
         '.mp4', '.avi', '.mov', '.mkv', '.webm',  # Videos (webcam uses .webm)
-        '.wav', '.mp3', '.m4a', '.flac'  # Audio
+        '.wav', '.mp3', '.m4a', '.flac', '.mpeg', '.mpg', '.ogg', '.aac', '.opus'  # Audio
     ]
 
     file = forms.FileField(
@@ -131,13 +159,32 @@ class CustomUserCreationForm(UserCreationForm):
         required=True,
         widget=forms.EmailInput(attrs={
             'class': 'form-input',
-            'placeholder': 'your@email.com'
-        })
+            'placeholder': 'your@email.com',
+            'autocomplete': 'email'
+        }),
+        help_text='Required. Enter a valid email address.'
+    )
+    security_question = forms.ChoiceField(
+        choices=UserSecurityProfile.SECURITY_QUESTION_CHOICES,
+        widget=forms.Select(attrs={
+            'class': 'form-input'
+        }),
+        label='Security Question',
+        help_text='Choose a question to use for password recovery.'
+    )
+    security_answer = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Answer to security question',
+            'autocomplete': 'new-password'
+        }),
+        label='Security Answer',
+        help_text='This answer will be used to verify your identity during password recovery.'
     )
 
     class Meta:
         model = User
-        fields = ('username', 'email', 'password1', 'password2')
+        fields = ('username', 'email', 'password1', 'password2', 'security_question', 'security_answer')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -153,13 +200,105 @@ class CustomUserCreationForm(UserCreationForm):
             'class': 'form-input',
             'placeholder': 'Confirm password'
         })
+        self.fields['security_question'].widget.attrs.update({
+            'class': 'form-input'
+        })
+        self.fields['security_answer'].widget.attrs.update({
+            'class': 'form-input',
+            'placeholder': 'Answer to security question'
+        })
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.email = self.cleaned_data['email']
         if commit:
             user.save()
+            profile = UserSecurityProfile(user=user)
+            profile.security_question = self.cleaned_data['security_question']
+            profile.set_security_answer(self.cleaned_data['security_answer'])
+            profile.save()
         return user
+
+
+class PasswordResetUsernameForm(forms.Form):
+    username = forms.CharField(
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter your username',
+            'autocomplete': 'username'
+        }),
+        label='Username'
+    )
+
+
+class PasswordResetSecurityForm(forms.Form):
+    security_answer = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter your security answer',
+            'autocomplete': 'off'
+        }),
+        label='Security Answer'
+    )
+    new_password1 = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'New password',
+            'autocomplete': 'new-password'
+        }),
+        label='New Password'
+    )
+    new_password2 = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Confirm new password',
+            'autocomplete': 'new-password'
+        }),
+        label='Confirm New Password'
+    )
+
+    def __init__(self, user=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password1 = cleaned_data.get('new_password1')
+        password2 = cleaned_data.get('new_password2')
+
+        if password1 and password2 and password1 != password2:
+            self.add_error('new_password2', 'The two password fields did not match.')
+
+        if self.user and password1:
+            try:
+                password_validation.validate_password(password1, self.user)
+            except forms.ValidationError as exc:
+                self.add_error('new_password1', exc)
+
+        return cleaned_data
+
+
+class UserPasswordChangeForm(PasswordChangeForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['old_password'].widget.attrs.update({
+            'class': 'form-input',
+            'placeholder': 'Current Password',
+            'autocomplete': 'current-password'
+        })
+        self.fields['new_password1'].widget.attrs.update({
+            'class': 'form-input',
+            'placeholder': 'New Password',
+            'autocomplete': 'new-password'
+        })
+        self.fields['new_password2'].widget.attrs.update({
+            'class': 'form-input',
+            'placeholder': 'Confirm New Password',
+            'autocomplete': 'new-password'
+        })
+        self.fields['old_password'].label = 'Current Password'
+        self.fields['new_password1'].label = 'New Password'
+        self.fields['new_password2'].label = 'Confirm New Password'
+        self.fields['new_password1'].help_text = password_validation.password_validators_help_text_html()
 
 
 class UserProfileForm(forms.ModelForm):

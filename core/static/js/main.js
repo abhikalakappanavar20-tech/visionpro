@@ -4,15 +4,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Mobile navigation toggle
-    const navToggle = document.getElementById('navToggle');
-    if (navToggle) {
-        navToggle.addEventListener('click', function() {
-            const navMenu = document.querySelector('.nav-menu');
-            navMenu.classList.toggle('active');
-        });
-    }
-
     // Auto-hide messages after 5 seconds
     const messages = document.querySelectorAll('.alert');
     messages.forEach(message => {

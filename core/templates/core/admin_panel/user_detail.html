@@ -1,0 +1,101 @@
+{% extends "core/admin_panel/base_admin.html" %}
+
+{% block admin_content %}
+<h1>User: {{ target_user.username }}</h1>
+<p class="subtitle">
+    <a href="{% url 'admin_panel_users' %}" style="color:#4f8cff;text-decoration:none;">‹ Back to users</a>
+</p>
+
+<div class="admin-card">
+    <h3><i class="fas fa-id-card"></i> Profile</h3>
+    <table class="admin-table">
+        <tr><th>User ID</th><td>#{{ target_user.id }}</td></tr>
+        <tr><th>Username</th><td>{{ target_user.username }}</td></tr>
+        <tr><th>Email</th><td>{{ target_user.email|default:"—" }}</td></tr>
+        <tr><th>Full Name</th><td>{{ target_user.get_full_name|default:"—" }}</td></tr>
+        <tr><th>Date Joined</th><td>{{ target_user.date_joined|date:"M d, Y H:i" }}</td></tr>
+        <tr><th>Last Login</th><td>{{ target_user.last_login|date:"M d, Y H:i"|default:"Never" }}</td></tr>
+        <tr>
+            <th>Role</th>
+            <td>
+                {% if target_user.is_superuser %}<span class="pill staff">Superuser</span>
+                {% elif target_user.is_staff %}<span class="pill staff">Staff</span>
+                {% else %}<span class="pill active">Regular User</span>{% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>Status</th>
+            <td>
+                {% if target_user.is_active %}<span class="pill active">Active</span>
+                {% else %}<span class="pill inactive">Disabled</span>{% endif %}
+            </td>
+        </tr>
+    </table>
+</div>
+
+{% if target_user.id != user.id %}
+<div class="admin-card">
+    <h3><i class="fas fa-toolbox"></i> Actions</h3>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <form method="post" action="{% url 'admin_panel_user_action' target_user.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="toggle_staff">
+            <button type="submit" class="btn-admin">
+                <i class="fas fa-user-shield"></i>
+                {% if target_user.is_staff %}Revoke Staff{% else %}Grant Staff{% endif %}
+            </button>
+        </form>
+        <form method="post" action="{% url 'admin_panel_user_action' target_user.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="toggle_active">
+            <button type="submit" class="btn-admin">
+                <i class="fas fa-power-off"></i>
+                {% if target_user.is_active %}Disable Account{% else %}Enable Account{% endif %}
+            </button>
+        </form>
+        <form method="post" action="{% url 'admin_panel_user_action' target_user.id %}"
+              onsubmit="return confirm('Permanently delete user {{ target_user.username }}? This cannot be undone.');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <button type="submit" class="btn-admin danger">
+                <i class="fas fa-trash"></i> Delete User
+            </button>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="admin-card" style="border-color:#3a3370;">
+    <p style="color:#ffb347;margin:0;">
+        <i class="fas fa-info-circle"></i> You can't modify your own admin account from this panel.
+    </p>
+</div>
+{% endif %}
+
+<div class="admin-card">
+    <h3><i class="fas fa-magnifying-glass-chart"></i> Recent Scans (system-wide)</h3>
+    <p class="subtitle" style="margin-bottom:12px;">
+        Per-user scan attribution requires user FK on MediaScan — not yet wired up,
+        so this shows recent scans across the system as a fallback.
+    </p>
+    {% if user_scans %}
+    <table class="admin-table">
+        <thead>
+            <tr><th>ID</th><th>Type</th><th>Result</th><th>Confidence</th><th>When</th></tr>
+        </thead>
+        <tbody>
+            {% for s in user_scans %}
+            <tr>
+                <td>#{{ s.id }}</td>
+                <td>{{ s.get_file_type_display }}</td>
+                <td><span class="pill {{ s.scan_result }}">{{ s.scan_result }}</span></td>
+                <td>{{ s.confidence_score }}%</td>
+                <td>{{ s.created_at|date:"M d, H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No scans found.</div>
+    {% endif %}
+</div>
+{% endblock %}

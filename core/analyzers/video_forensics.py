@@ -446,36 +446,61 @@ class VideoForensicsAnalyzer(BaseAnalyzer):
             )
 
             if len(faces) > 0:
-                # Use the largest face
+                # Use the largest face, but remember if the frame was crowded —
+                # in multi-person scenes the "largest face" can flip between people.
                 largest_face = max(faces, key=lambda x: x[2] * x[3])
                 face_positions.append({
                     'x': int(largest_face[0]),
                     'y': int(largest_face[1]),
                     'w': int(largest_face[2]),
-                    'h': int(largest_face[3])
+                    'h': int(largest_face[3]),
+                    'multi': len(faces) > 1
                 })
 
-        # Analyze movement anomalies
+        # Analyze movement anomalies — only between frames that plausibly
+        # show the SAME face (no multi-face frames, similar size).
         movement_anomalies = 0
-        if len(face_positions) > 1:
+        comparable_pairs = 0
+        if len(face_positions) > 1 and frames:
+            # Scale threshold to frame size so HD video isn't unfairly penalized.
+            fh, fw = frames[0].shape[:2]
+            distance_threshold = max(100.0, min(fh, fw) * 0.20)
+
             for i in range(1, len(face_positions)):
-                prev = face_positions[i-1]
+                prev = face_positions[i - 1]
                 curr = face_positions[i]
 
-                # Calculate movement distance
-                distance = np.sqrt(
-                    (curr['x'] - prev['x'])**2 +
-                    (curr['y'] - prev['y'])**2
-                )
+                # Crowded frames almost always mean we're comparing different
+                # people across frames — skip these pairs entirely.
+                if prev.get('multi') or curr.get('multi'):
+                    continue
 
-                # Sudden large movements are suspicious
-                if distance > 100:  # Threshold for "sudden" movement
+                # Drastic size change → different person, not movement.
+                size_ratio = curr['w'] / max(prev['w'], 1)
+                if size_ratio < 0.7 or size_ratio > 1.43:
+                    continue
+
+                comparable_pairs += 1
+                distance = np.sqrt(
+                    (curr['x'] - prev['x']) ** 2 +
+                    (curr['y'] - prev['y']) ** 2
+                )
+                if distance > distance_threshold:
                     movement_anomalies += 1
+
+        # Sanity check: a genuine deepfake would have a FEW jerky moments,
+        # not constant teleportation. A high anomaly ratio means the cascade
+        # is locking onto different people frame-to-frame, not tracking a
+        # single face — discard the signal.
+        if comparable_pairs >= 3 and (movement_anomalies / comparable_pairs) > 0.4:
+            movement_anomalies = 0
 
         return {
             'faces_detected': len(face_positions),
-            'face_positions': face_positions[:5],  # Store first 5
+            'face_positions': [{k: v for k, v in p.items() if k != 'multi'}
+                               for p in face_positions[:5]],
             'movement_anomalies': movement_anomalies,
+            'comparable_pairs': comparable_pairs,
             'detection_rate': len(face_positions) / len(frames) if frames else 0
         }
 
@@ -572,7 +597,18 @@ class VideoForensicsAnalyzer(BaseAnalyzer):
 
         frame_score = frame_analysis['average_score']
         temporal_score = 100 - temporal_analysis['consistency_score']  # Invert: low consistency = high manipulation
-        face_score = min(100, face_analysis['movement_anomalies'] * 20)  # Scale anomalies
+        # Hyper-consistency penalty: AI videos often have unnaturally perfect consistency (>95%)
+        if temporal_analysis['consistency_score'] > 95:
+            temporal_score += 30  # Boost score for unnaturally consistent video
+        temporal_score = min(100, temporal_score)
+        # Face anomalies are noisy when detection is unreliable (low rate, few comparable
+        # pairs) — scale the signal so it can't dominate based on sparse data.
+        raw_face_score = min(100, face_analysis['movement_anomalies'] * 30)
+        detection_rate = face_analysis.get('detection_rate', 0)
+        comparable_pairs = face_analysis.get('comparable_pairs', 0)
+        # Require at least 4 comparable pairs before trusting the anomaly signal fully.
+        pair_confidence = min(1.0, comparable_pairs / 4.0)
+        face_score = raw_face_score * detection_rate * pair_confidence
 
         # Adjust motion score calculation for webcam
         if is_webcam:
@@ -586,6 +622,17 @@ class VideoForensicsAnalyzer(BaseAnalyzer):
             face_score * weights['face'] +
             motion_score * weights['motion']
         )
+
+        # Apply soft cap to reduce false positives on real videos
+        # Real videos often score higher due to codec compression, temporal variations, etc.
+        # This brings down the score for typical real videos while keeping clearly fake videos high
+        if is_webcam and 15 <= overall <= 50:
+            # Webcam videos are most lenient
+            overall = overall * 0.60  # Reduce by 40%
+        elif not is_webcam and 20 <= overall <= 55:
+            # Uploaded real videos often score 30-45 due to compression
+            # This reduces that range significantly but preserves AI-generated video signals
+            overall = overall * 0.75  # Reduce by 25%
 
         return round(overall, 2)
 
@@ -626,6 +673,8 @@ class VideoForensicsAnalyzer(BaseAnalyzer):
         temporal_threshold = 50 if is_webcam else 60
         if temporal_analysis['consistency_score'] < temporal_threshold:
             indicators.append("Lighting inconsistencies detected")
+        if temporal_analysis['consistency_score'] > 95:
+            indicators.append("Unnaturally consistent lighting/background (AI generation suspected)")
         if temporal_analysis['max_brightness_change'] > 50:
             indicators.append("Sudden lighting changes")
 

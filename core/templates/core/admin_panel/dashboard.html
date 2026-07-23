@@ -1,0 +1,259 @@
+{% extends "core/admin_panel/base_admin.html" %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+    .analytics-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    .analytics-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    .chart-card {
+        background: #121738;
+        border: 1px solid #1f2649;
+        border-radius: 10px;
+        padding: 20px 22px;
+        min-height: 320px;
+    }
+    .chart-card h3 {
+        margin: 0 0 16px;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .chart-canvas-wrap {
+        position: relative;
+        height: 280px;
+    }
+    @media (max-width: 1000px) {
+        .analytics-grid, .analytics-grid-2 { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<h1>Admin Dashboard</h1>
+<p class="subtitle">System overview, analytics, and recent activity.</p>
+
+<!-- KPI cards -->
+<div class="kpi-grid">
+    <div class="kpi"><div class="label">Total Users</div><div class="value blue">{{ total_users }}</div></div>
+    <div class="kpi"><div class="label">Staff Accounts</div><div class="value">{{ staff_users }}</div></div>
+    <div class="kpi"><div class="label">Active (30d)</div><div class="value">{{ active_users_30d }}</div></div>
+    <div class="kpi"><div class="label">Total Scans</div><div class="value blue">{{ total_scans }}</div></div>
+    <div class="kpi"><div class="label">Real</div><div class="value green">{{ real_scans }}</div></div>
+    <div class="kpi"><div class="label">Fake</div><div class="value red">{{ fake_scans }}</div></div>
+    <div class="kpi"><div class="label">Suspicious</div><div class="value amber">{{ suspicious_scans }}</div></div>
+    <div class="kpi"><div class="label">Pending Reports</div><div class="value amber">{{ pending_reports }}</div></div>
+</div>
+
+<!-- Average metric cards -->
+<div class="kpi-grid">
+    <div class="kpi"><div class="label">Avg Confidence</div><div class="value amber">{{ avg_confidence }}%</div></div>
+    <div class="kpi"><div class="label">Avg Trust Score</div><div class="value green">{{ avg_trust }}</div></div>
+    <div class="kpi"><div class="label">Avg Processing Time</div><div class="value blue">{{ avg_processing }}s</div></div>
+    <div class="kpi"><div class="label">Total Reports</div><div class="value">{{ total_reports }}</div></div>
+</div>
+
+<!-- Analytics charts row 1: timeline + result donut -->
+<div class="analytics-grid">
+    <div class="chart-card">
+        <h3><i class="fas fa-chart-line"></i> Scans Over Last 30 Days</h3>
+        <div class="chart-canvas-wrap"><canvas id="chartTimeline"></canvas></div>
+    </div>
+    <div class="chart-card">
+        <h3><i class="fas fa-chart-pie"></i> Result Distribution</h3>
+        <div class="chart-canvas-wrap"><canvas id="chartResults"></canvas></div>
+    </div>
+</div>
+
+<!-- Analytics charts row 2: file type + (room for future) -->
+<div class="analytics-grid-2">
+    <div class="chart-card">
+        <h3><i class="fas fa-file"></i> File Type Breakdown</h3>
+        <div class="chart-canvas-wrap"><canvas id="chartTypes"></canvas></div>
+    </div>
+    <div class="chart-card">
+        <h3><i class="fas fa-percent"></i> Detection Rate</h3>
+        <div class="chart-canvas-wrap"><canvas id="chartDetectionRate"></canvas></div>
+    </div>
+</div>
+
+<!-- Activity tables -->
+<div class="admin-card">
+    <h3><i class="fas fa-clock-rotate-left"></i> Recent Scans</h3>
+    {% if recent_scans %}
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>ID</th><th>Type</th><th>Result</th><th>Confidence</th>
+                <th>File / URL</th><th>When</th><th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in recent_scans %}
+            <tr>
+                <td>#{{ s.id }}</td>
+                <td>{{ s.get_file_type_display }}</td>
+                <td><span class="pill {{ s.scan_result }}">{{ s.scan_result }}</span></td>
+                <td>{{ s.confidence_score }}%</td>
+                <td>{{ s.original_filename|default:s.url|default:"—"|truncatechars:48 }}</td>
+                <td>{{ s.created_at|date:"M d, H:i" }}</td>
+                <td><a href="{% url 'result' s.id %}" class="btn-admin">View</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No scans yet.</div>
+    {% endif %}
+</div>
+
+<div class="admin-card">
+    <h3><i class="fas fa-flag"></i> Recent Reports</h3>
+    {% if recent_reports %}
+    <table class="admin-table">
+        <thead>
+            <tr><th>ID</th><th>Content</th><th>Status</th><th>Reason</th><th>When</th></tr>
+        </thead>
+        <tbody>
+            {% for r in recent_reports %}
+            <tr>
+                <td>#{{ r.id }}</td>
+                <td>{{ r.url_or_file_name|truncatechars:40 }}</td>
+                <td><span class="pill {{ r.status }}">{{ r.get_status_display }}</span></td>
+                <td>{{ r.reason|truncatechars:60 }}</td>
+                <td>{{ r.created_at|date:"M d, H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No reports yet.</div>
+    {% endif %}
+</div>
+
+<script>
+(function () {
+    const gridColor = 'rgba(255,255,255,0.06)';
+    const tickColor = '#8b93b8';
+    const baseLegend = { labels: { color: '#e4e8f5', font: { size: 12 } } };
+
+    // 30-day timeline
+    new Chart(document.getElementById('chartTimeline'), {
+        type: 'line',
+        data: {
+            labels: {{ chart_time_labels|safe }},
+            datasets: [
+                {
+                    label: 'Total Scans',
+                    data: {{ chart_time_total|safe }},
+                    borderColor: '#4f8cff',
+                    backgroundColor: 'rgba(79,140,255,0.15)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 2
+                },
+                {
+                    label: 'Fake Detected',
+                    data: {{ chart_time_fake|safe }},
+                    borderColor: '#ff6b6b',
+                    backgroundColor: 'rgba(255,107,107,0.1)',
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: baseLegend },
+            scales: {
+                x: { ticks: { color: tickColor, maxTicksLimit: 10 }, grid: { color: gridColor } },
+                y: { ticks: { color: tickColor, precision: 0 }, grid: { color: gridColor }, beginAtZero: true }
+            }
+        }
+    });
+
+    // Result distribution donut
+    new Chart(document.getElementById('chartResults'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Real', 'Suspicious', 'Fake'],
+            datasets: [{
+                data: {{ chart_result_values|safe }},
+                backgroundColor: ['#3ad29f', '#ffb347', '#ff6b6b'],
+                borderColor: '#121738',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { color: '#e4e8f5' } } },
+            cutout: '60%'
+        }
+    });
+
+    // File type bar
+    new Chart(document.getElementById('chartTypes'), {
+        type: 'bar',
+        data: {
+            labels: {{ chart_type_labels|safe }},
+            datasets: [{
+                label: 'Scans',
+                data: {{ chart_type_values|safe }},
+                backgroundColor: ['#4f8cff', '#b394ff', '#3ad29f', '#ffb347'],
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: tickColor }, grid: { color: gridColor } },
+                y: { ticks: { color: tickColor, precision: 0 }, grid: { color: gridColor }, beginAtZero: true }
+            }
+        }
+    });
+
+    // Detection rate horizontal bar (real vs fake vs suspicious as %)
+    const total = {{ total_scans|default:0 }};
+    const pct = (n) => total > 0 ? (n / total * 100).toFixed(1) : 0;
+    new Chart(document.getElementById('chartDetectionRate'), {
+        type: 'bar',
+        data: {
+            labels: ['Real %', 'Suspicious %', 'Fake %'],
+            datasets: [{
+                label: '% of total scans',
+                data: [pct({{ real_scans }}), pct({{ suspicious_scans }}), pct({{ fake_scans }})],
+                backgroundColor: ['#3ad29f', '#ffb347', '#ff6b6b'],
+                borderRadius: 6
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: tickColor, callback: v => v + '%' }, grid: { color: gridColor }, beginAtZero: true, max: 100 },
+                y: { ticks: { color: tickColor }, grid: { color: gridColor } }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

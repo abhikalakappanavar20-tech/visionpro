@@ -9,7 +9,7 @@ from .models import MediaScan, ReportedContent, ForensicDatabase
 class MediaScanAdmin(admin.ModelAdmin):
     """Admin interface for MediaScan model"""
     list_display = [
-        'id', 'file_type', 'scan_result', 'confidence_score',
+        'id', 'user', 'file_type', 'scan_result', 'confidence_score',
         'trust_score', 'forensic_match', 'created_at'
     ]
     list_filter = ['file_type', 'scan_result', 'forensic_match', 'created_at']
@@ -35,7 +35,7 @@ class MediaScanAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Metadata', {
-            'fields': ('created_at', 'ip_address')
+            'fields': ('created_at', 'ip_address', 'user')
         }),
     )
 

@@ -1,0 +1,17 @@
+{% extends "core/base.html" %}
+
+{% block title %}Access Denied{% endblock %}
+
+{% block content %}
+<div style="max-width: 520px; margin: 80px auto; text-align: center; color: #e4e8f5;">
+    <i class="fas fa-lock" style="font-size: 56px; color: #ff6b6b; margin-bottom: 20px;"></i>
+    <h1 style="color: #fff;">Admin Access Required</h1>
+    <p style="color: #8b93b8; margin: 12px 0 24px;">
+        You're logged in as <strong style="color:#fff;">{{ user.username }}</strong>,
+        but this area is restricted to staff accounts.
+    </p>
+    <a href="{% url 'home' %}" class="btn btn-primary">
+        <i class="fas fa-home"></i> Back to Home
+    </a>
+</div>
+{% endblock %}

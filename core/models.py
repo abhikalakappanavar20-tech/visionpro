@@ -14,6 +14,8 @@ def validate_score_range(value):
 
 
 from django.core.exceptions import ValidationError
+from django.conf import settings
+from django.contrib.auth.hashers import make_password, check_password
 
 
 def upload_path(instance, filename):
@@ -21,9 +23,9 @@ def upload_path(instance, filename):
     ext = os.path.splitext(filename)[1].lower()
     if ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
         return f'images/{filename}'
-    elif ext in ['.mp4', '.avi', '.mov', '.mkv']:
+    elif ext in ['.mp4', '.avi', '.mov', '.mkv', '.webm']:
         return f'videos/{filename}'
-    elif ext in ['.wav', '.mp3', '.m4a', '.flac']:
+    elif ext in ['.wav', '.mp3', '.m4a', '.flac', '.mpeg', '.mpg', '.ogg', '.aac', '.opus']:
         return f'audio/{filename}'
     return f'uploads/{filename}'
 
@@ -78,6 +80,14 @@ class MediaScan(models.Model):
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
+    # Link to authenticated user who initiated the scan (optional)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='scans'
+    )
 
     def __str__(self):
         return f"MediaScan {self.id} - {self.scan_result} ({self.confidence_score}%)"
@@ -127,6 +137,48 @@ class ReportedContent(models.Model):
         ordering = ['-created_at']
         verbose_name = "Reported Content"
         verbose_name_plural = "Reported Content"
+
+
+class UserSecurityProfile(models.Model):
+    """Store a user-specific security question and answer for password recovery."""
+
+    SECURITY_QUESTION_CHOICES = [
+        ('pet_name', "What was your first pet's name?"),
+        ('mother_maiden', "What is your mother's maiden name?"),
+        ('first_school', "What was the name of your first school?"),
+        ('favorite_teacher', "Who was your favorite teacher?"),
+        ('birth_city', "In which city were you born?"),
+    ]
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='security_profile'
+    )
+    security_question = models.CharField(
+        max_length=64,
+        choices=SECURITY_QUESTION_CHOICES,
+        help_text="Select a recovery question only you know the answer to."
+    )
+    security_answer_hash = models.CharField(
+        max_length=128,
+        help_text="Hashed answer for the chosen security question."
+    )
+
+    def set_security_answer(self, raw_answer):
+        normalized = raw_answer.strip().lower()
+        self.security_answer_hash = make_password(normalized)
+
+    def check_security_answer(self, raw_answer):
+        normalized = raw_answer.strip().lower()
+        return check_password(normalized, self.security_answer_hash)
+
+    def __str__(self):
+        return f"Security profile for {self.user.username}"
+
+    class Meta:
+        verbose_name = "User Security Profile"
+        verbose_name_plural = "User Security Profiles"
 
 
 class ForensicDatabase(models.Model):

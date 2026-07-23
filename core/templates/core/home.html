@@ -1,310 +1,1314 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="VeriVision - Advanced Deepfake Detection Platform powered by Explainable AI">
-    <title>VeriVision - Deepfake Detection Platform</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Manifest disabled - icon files not available -->
-    <!-- <link rel="manifest" href="/static/manifest.json"> -->
-    <meta name="theme-color" content="#0a0e27">
-</head>
-<body>
-    <!-- Navigation -->
-    <nav class="navbar">
-        <div class="container">
-            <div class="nav-brand">
-                <i class="fas fa-shield-alt"></i>
-                <span>VeriVision</span>
+{% extends 'core/base.html' %}
+{% block title %}VeriVision - Deepfake Detection Platform{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ===== HOME PAGE SPECIFIC STYLES ===== */
+
+/* Hero Section */
+.hero {
+    position: relative;
+    overflow: hidden;
+    padding: 6rem 0 4rem;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+}
+
+/* Hero Content */
+.hero .container {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+}
+
+.hero-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: center;
+}
+
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(8, 145, 178, 0.06);
+    border: 1px solid rgba(8, 145, 178, 0.18);
+    border-radius: 2rem;
+    font-size: 0.8rem;
+    color: #0e7490;
+    margin-bottom: 1.5rem;
+    animation: fadeInUp 0.6s ease forwards;
+    opacity: 0;
+    font-weight: 500;
+}
+
+.hero-badge .pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent-green);
+    border-radius: 50%;
+    animation: pulseDot 2s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+}
+
+.hero-text h1 {
+    font-size: 3.5rem;
+    line-height: 1.15;
+    margin-bottom: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    animation: fadeInUp 0.6s ease 0.15s forwards;
+    opacity: 0;
+}
+
+.hero-text h1 .line {
+    display: block;
+}
+
+.hero-text h1 .gradient-text {
+    background: linear-gradient(135deg, #0891b2, #2563eb, #7c3aed);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    background-size: 200% 200%;
+    animation: gradientShift 4s ease infinite;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.hero-subtitle {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+    max-width: 520px;
+    line-height: 1.7;
+    animation: fadeInUp 0.6s ease 0.3s forwards;
+    opacity: 0;
+}
+
+.cta-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+    animation: fadeInUp 0.6s ease 0.45s forwards;
+    opacity: 0;
+}
+
+.cta-buttons .btn {
+    position: relative;
+    overflow: hidden;
+    padding: 1rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cta-buttons .btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; right: 0; bottom: 0;
+    width: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    transition: left 0.5s ease;
+}
+
+.cta-buttons .btn:hover::before {
+    left: 100%;
+}
+
+.cta-buttons .btn-primary {
+    background: linear-gradient(135deg, #1e3a8a, #0891b2);
+    box-shadow: 0 4px 20px rgba(30, 58, 138, 0.25);
+}
+
+.cta-buttons .btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(30, 58, 138, 0.35);
+    color: white;
+}
+
+.cta-buttons .btn-secondary {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    color: var(--text-primary);
+}
+
+.cta-buttons .btn-secondary:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent-cyan);
+    background: #f8fafc;
+    color: var(--accent-cyan);
+}
+
+.cta-buttons .btn-outline {
+    border: 1px solid #e2e8f0;
+    background: transparent;
+    color: var(--text-secondary);
+}
+
+.cta-buttons .btn-outline:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+    background: rgba(8, 145, 178, 0.04);
+}
+
+/* Hero Feature Pills */
+.hero-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    animation: fadeInUp 0.6s ease 0.6s forwards;
+    opacity: 0;
+}
+
+.hero-feature-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 2rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.hero-feature-pill:hover {
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+    background: rgba(8, 145, 178, 0.04);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(8, 145, 178, 0.1);
+}
+
+.hero-feature-pill i {
+    color: var(--accent-cyan);
+    font-size: 0.9rem;
+}
+
+/* Hero Visual - Animated Shield */
+.hero-visual {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: fadeInUp 0.8s ease 0.3s forwards;
+    opacity: 0;
+}
+
+.shield-container {
+    position: relative;
+    width: 380px;
+    height: 380px;
+}
+
+.shield-outer {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border: 2px solid rgba(8, 145, 178, 0.12);
+    border-radius: 50%;
+    animation: shieldRotate 20s linear infinite;
+}
+
+.shield-outer::before {
+    content: '';
+    position: absolute;
+    top: -4px; left: 50%;
+    width: 8px; height: 8px;
+    background: var(--accent-cyan);
+    border-radius: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 0 12px rgba(8, 145, 178, 0.5);
+}
+
+@keyframes shieldRotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.shield-mid {
+    position: absolute;
+    top: 30px; left: 30px; right: 30px; bottom: 30px;
+    border: 2px solid rgba(59, 130, 246, 0.12);
+    border-radius: 50%;
+    animation: shieldRotate 15s linear infinite reverse;
+}
+
+.shield-mid::before {
+    content: '';
+    position: absolute;
+    top: -4px; left: 50%;
+    width: 8px; height: 8px;
+    background: #3b82f6;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+}
+
+.shield-inner {
+    position: absolute;
+    top: 60px; left: 60px; right: 60px; bottom: 60px;
+    border: 2px solid rgba(124, 58, 237, 0.12);
+    border-radius: 50%;
+    animation: shieldRotate 10s linear infinite;
+}
+
+.shield-inner::before {
+    content: '';
+    position: absolute;
+    top: -4px; left: 50%;
+    width: 8px; height: 8px;
+    background: #7c3aed;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 0 12px rgba(124, 58, 237, 0.5);
+}
+
+.shield-core {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 160px;
+    height: 160px;
+    background: radial-gradient(circle, rgba(8, 145, 178, 0.08) 0%, transparent 70%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: corePulse 3s ease-in-out infinite;
+}
+
+@keyframes corePulse {
+    0%, 100% { box-shadow: 0 0 40px rgba(8, 145, 178, 0.06), inset 0 0 40px rgba(8, 145, 178, 0.03); }
+    50% { box-shadow: 0 0 60px rgba(8, 145, 178, 0.12), inset 0 0 60px rgba(8, 145, 178, 0.06); }
+}
+
+.shield-core i {
+    font-size: 4rem;
+    background: linear-gradient(135deg, #0891b2, #2563eb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 20px rgba(8, 145, 178, 0.3));
+}
+
+/* Scan Lines Effect */
+.scan-line {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(8, 145, 178, 0.4), transparent);
+    animation: scanDown 4s ease-in-out infinite;
+    opacity: 0.6;
+}
+
+@keyframes scanDown {
+    0% { top: 0; opacity: 0; }
+    10% { opacity: 0.6; }
+    90% { opacity: 0.6; }
+    100% { top: 100%; opacity: 0; }
+}
+
+/* ===== QUICK SCAN ===== */
+.quick-scan {
+    position: relative;
+    padding: 0 0 4rem;
+    margin-top: -2rem;
+}
+
+.quick-scan-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 2.5rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+}
+
+.quick-scan-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(8, 145, 178, 0.3), transparent);
+}
+
+.quick-scan-card h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.quick-scan-card h2 i {
+    color: var(--accent-cyan);
+    animation: lightningBolt 2s ease-in-out infinite;
+}
+
+@keyframes lightningBolt {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+.quick-scan-card > p {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+    font-size: 1rem;
+}
+
+.quick-scan-form .input-group {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.quick-scan-form input {
+    flex: 1;
+    padding: 1rem 1.25rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.quick-scan-form input:focus {
+    outline: none;
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.08);
+}
+
+.quick-scan-form .btn {
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.supported-platforms {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.supported-platforms i {
+    font-size: 1.3rem;
+    color: var(--text-muted);
+    transition: all 0.3s ease;
+}
+
+.supported-platforms i:hover {
+    color: var(--accent-cyan);
+    transform: translateY(-2px);
+}
+
+/* ===== STATS ===== */
+.stats-section {
+    padding: 5rem 0;
+    position: relative;
+}
+
+.stats-section::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at center, rgba(8, 145, 178, 0.02) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+}
+
+.stat-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    transform: translateY(30px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.stat-card.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent-cyan), #3b82f6);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+}
+
+.stat-card:hover::before {
+    transform: scaleX(1);
+}
+
+.stat-card:hover {
+    transform: translateY(-8px);
+    border-color: rgba(8, 145, 178, 0.25);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+
+.stat-icon {
+    width: 64px;
+    height: 64px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(8, 145, 178, 0.08), rgba(59, 130, 246, 0.08));
+    border-radius: 16px;
+    margin: 0 auto 1rem;
+    font-size: 1.5rem;
+    color: var(--accent-cyan);
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover .stat-icon {
+    transform: scale(1.1);
+    background: linear-gradient(135deg, rgba(8, 145, 178, 0.12), rgba(59, 130, 246, 0.12));
+}
+
+.stat-content h3 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 0.25rem;
+    background: linear-gradient(135deg, var(--text-primary), var(--accent-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-content p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* ===== FEATURES ===== */
+.features-section {
+    padding: 5rem 0;
+    position: relative;
+}
+
+.section-title {
+    text-align: center;
+    font-size: 2.8rem;
+    margin-bottom: 0.75rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.section-subtitle {
+    text-align: center;
+    color: var(--text-secondary);
+    margin-bottom: 3rem;
+    font-size: 1.1rem;
+}
+
+.features-grid-expanded {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+.feature-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    transform: translateY(30px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.feature-card.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.feature-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, rgba(8, 145, 178, 0.03) 0%, transparent 50%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.feature-card:hover::after {
+    opacity: 1;
+}
+
+.feature-card:hover {
+    transform: translateY(-8px);
+    border-color: rgba(8, 145, 178, 0.25);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+
+.feature-card-icon {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(8, 145, 178, 0.08), rgba(59, 130, 246, 0.08));
+    border-radius: 14px;
+    margin-bottom: 1.25rem;
+    font-size: 1.4rem;
+    color: var(--accent-cyan);
+    transition: all 0.3s ease;
+}
+
+.feature-card:hover .feature-card-icon {
+    transform: scale(1.1) rotate(-5deg);
+    background: linear-gradient(135deg, rgba(8, 145, 178, 0.15), rgba(59, 130, 246, 0.15));
+}
+
+.feature-card h3 {
+    font-size: 1.15rem;
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+}
+
+.feature-card p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+/* ===== HOW IT WORKS ===== */
+.how-it-works {
+    padding: 5rem 0;
+    background: linear-gradient(180deg, transparent 0%, rgba(8, 145, 178, 0.015) 50%, transparent 100%);
+}
+
+.steps-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+    margin-top: 3rem;
+    position: relative;
+}
+
+.steps-grid::before {
+    content: '';
+    position: absolute;
+    top: 40px;
+    left: 15%;
+    right: 15%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(8, 145, 178, 0.15), rgba(8, 145, 178, 0.15), transparent);
+}
+
+.step-card {
+    text-align: center;
+    position: relative;
+    opacity: 0;
+    transform: translateY(30px);
+}
+
+.step-card.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.step-number {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #ffffff;
+    border: 2px solid rgba(8, 145, 178, 0.2);
+    border-radius: 50%;
+    margin: 0 auto 1.5rem;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--accent-cyan);
+    position: relative;
+    z-index: 2;
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.step-card:hover .step-number {
+    background: linear-gradient(135deg, rgba(8, 145, 178, 0.08), rgba(59, 130, 246, 0.08));
+    border-color: var(--accent-cyan);
+    transform: scale(1.1);
+    box-shadow: 0 0 30px rgba(8, 145, 178, 0.12);
+}
+
+.step-card h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+}
+
+.step-card p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+/* ===== RECENT SCANS ===== */
+.recent-scans-section {
+    padding: 5rem 0;
+}
+
+.recent-scans-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.recent-scan-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(20px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.recent-scan-card.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.recent-scan-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--border-color);
+    transition: background 0.3s ease;
+}
+
+.recent-scan-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
+.recent-scan-card.scan-badge-real::before { background: var(--accent-green); }
+.recent-scan-card.scan-badge-fake::before,
+.recent-scan-card.scan-badge-manipulated::before { background: var(--accent-red); }
+.recent-scan-card.scan-badge-suspicious::before { background: var(--accent-yellow); }
+
+.text-center { text-align: center; }
+
+/* ===== FOOTER ===== */
+.footer {
+    background: rgba(21, 25, 52, 0.8);
+    border-top: 1px solid var(--border-color);
+    padding: 4rem 0 0;
+    margin-top: auto;
+    backdrop-filter: blur(20px);
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr;
+    gap: 3rem;
+    margin-bottom: 3rem;
+}
+
+.footer-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.footer-brand .brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.footer-brand .brand-logo i {
+    color: var(--accent-cyan);
+    font-size: 1.75rem;
+}
+
+.footer-brand p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.footer-links h4 {
+    margin-bottom: 1.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.footer-links ul li {
+    margin-bottom: 0.6rem;
+}
+
+.footer-links a {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.footer-links a:hover {
+    color: var(--accent-cyan);
+    padding-left: 4px;
+}
+
+.footer-social h4 {
+    margin-bottom: 1.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.social-links {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.social-links a {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.social-links a:hover {
+    background: linear-gradient(135deg, #1e3a8a, #06b6d4);
+    border-color: transparent;
+    color: white;
+    transform: translateY(-3px);
+    text-decoration: none;
+    box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+}
+
+.footer-bottom {
+    text-align: center;
+    padding: 1.5rem 0;
+    border-top: 1px solid var(--border-color);
+}
+
+.footer-bottom p {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+    .hero-content { grid-template-columns: 1fr; text-align: center; }
+    .hero-subtitle { margin: 0 auto 2rem; }
+    .cta-buttons { justify-content: center; }
+    .hero-features { justify-content: center; }
+    .hero-visual { order: -1; margin-bottom: 2rem; }
+    .shield-container { width: 280px; height: 280px; }
+    .features-grid-expanded { grid-template-columns: repeat(2, 1fr); }
+    .steps-grid { grid-template-columns: repeat(2, 1fr); }
+    .steps-grid::before { display: none; }
+    .footer-content { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+    .hero { padding: 4rem 0 2rem; min-height: auto; }
+    .hero-text h1 { font-size: 2.2rem; }
+    .section-title { font-size: 2rem; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .features-grid-expanded { grid-template-columns: 1fr; }
+    .steps-grid { grid-template-columns: 1fr; }
+    .footer-content { grid-template-columns: 1fr; }
+    .cta-buttons { flex-direction: column; align-items: center; }
+    .quick-scan-form .input-group { flex-direction: column; }
+}
+
+@media (max-width: 480px) {
+    .hero-text h1 { font-size: 1.8rem; }
+    .stats-grid { grid-template-columns: 1fr; }
+    .shield-container { width: 220px; height: 220px; }
+    .shield-core { width: 120px; height: 120px; }
+    .shield-core i { font-size: 2.5rem; }
+}
+
+/* ===== NAVBAR GLASS EFFECT ===== */
+.navbar {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.nav-brand i {
+    transition: all 0.3s ease;
+}
+
+.nav-brand:hover i {
+    transform: rotate(-10deg) scale(1.1);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero">
+
+    <div class="container">
+        <div class="hero-content">
+            <div class="hero-text">
+                <div class="hero-badge">
+                    <span class="pulse-dot"></span>
+                    AI-Powered Forensic Engine v2.0
+                </div>
+
+                <h1>
+                    <span class="line">Detect Digital</span>
+                    <span class="line">Deception with</span>
+                    <span class="line"><span class="gradient-text">AI Precision</span></span>
+                </h1>
+
+                <p class="hero-subtitle">
+                    Advanced deepfake detection powered by Explainable AI. Upload images, videos, audio, or analyze social media URLs instantly.
+                </p>
+
+                <div class="cta-buttons">
+                    <a href="{% url 'scan' %}" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Upload File
+                    </a>
+                    <a href="{% url 'webcam' %}" class="btn btn-secondary">
+                        <i class="fas fa-camera"></i> Use Webcam
+                    </a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline">
+                        <i class="fas fa-chart-bar"></i> View Analytics
+                    </a>
+                </div>
+
+                <div class="hero-features">
+                    <span class="hero-feature-pill">
+                        <i class="fas fa-brain"></i> AI-Powered Analysis
+                    </span>
+                    <span class="hero-feature-pill">
+                        <i class="fas fa-fire"></i> XAI Heatmaps
+                    </span>
+                    <span class="hero-feature-pill">
+                        <i class="fas fa-database"></i> Forensic Database
+                    </span>
+                    <span class="hero-feature-pill">
+                        <i class="fas fa-link"></i> Social Media Scanner
+                    </span>
+                </div>
             </div>
-            <ul class="nav-menu">
-                <li><a href="{% url 'home' %}" class="active"><i class="fas fa-home"></i> Home</a></li>
-                <li><a href="{% url 'scan' %}"><i class="fas fa-upload"></i> Upload</a></li>
-                <li><a href="{% url 'webcam' %}"><i class="fas fa-camera"></i> Webcam</a></li>
-                <li><a href="{% url 'dashboard' %}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
-                <li><a href="{% url 'history' %}"><i class="fas fa-history"></i> History</a></li>
-                {% if user.is_authenticated %}
-                <li><a href="{% url 'profile' %}"><i class="fas fa-user-circle"></i> {{ user.username }}</a></li>
-                <li><a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-                {% else %}
-                <li><a href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
-                <li><a href="{% url 'register' %}"><i class="fas fa-user-plus"></i> Register</a></li>
-                {% endif %}
-            </ul>
-            <button class="nav-toggle" id="navToggle">
-                <i class="fas fa-bars"></i>
-            </button>
+
+            <div class="hero-visual">
+                <div class="shield-container">
+                    <div class="shield-outer"></div>
+                    <div class="shield-mid"></div>
+                    <div class="shield-inner"></div>
+                    <div class="shield-core">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <div class="scan-line"></div>
+                </div>
+            </div>
         </div>
-    </nav>
+    </div>
+</section>
 
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="container">
-            <div class="hero-content">
-                <div class="hero-text">
-                    <h1>Detect Digital Deception with <span class="gradient-text">AI Precision</span></h1>
-                    <p class="hero-subtitle">Advanced deepfake detection powered by Explainable AI. Upload images, videos, audio, or analyze social media URLs instantly.</p>
+<!-- Quick Scan -->
+<section class="quick-scan">
+    <div class="container">
+        <div class="quick-scan-card">
+            <h2><i class="fas fa-bolt"></i> Quick URL Scan</h2>
+            <p>Paste a social media URL to instantly check its authenticity</p>
 
-                    <div class="cta-buttons">
-                        <a href="{% url 'scan' %}" class="btn btn-primary btn-lg">
-                            <i class="fas fa-upload"></i> Upload File
-                        </a>
-                        <a href="{% url 'webcam' %}" class="btn btn-secondary btn-lg">
-                            <i class="fas fa-camera"></i> Use Webcam
-                        </a>
-                        <a href="{% url 'dashboard' %}" class="btn btn-outline btn-lg">
-                            <i class="fas fa-chart-bar"></i> View Analytics
-                        </a>
-                    </div>
-
-                    <div class="features-grid">
-                        <div class="feature-item">
-                            <i class="fas fa-brain"></i>
-                            <span>AI-Powered Analysis</span>
-                        </div>
-                        <div class="feature-item">
-                            <i class="fas fa-fire"></i>
-                            <span>XAI Heatmap Visualization</span>
-                        </div>
-                        <div class="feature-item">
-                            <i class="fas fa-database"></i>
-                            <span>Forensic Database</span>
-                        </div>
-                        <div class="feature-item">
-                            <i class="fas fa-link"></i>
-                            <span>Social Media Scanner</span>
-                        </div>
-                    </div>
+            <form method="post" action="{% url 'scan_url' %}" class="quick-scan-form">
+                {% csrf_token %}
+                <div class="input-group">
+                    <input type="url" name="url" placeholder="https://twitter.com/user/status/..." required>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Analyze
+                    </button>
                 </div>
+            </form>
 
-                <div class="hero-visual">
-                    <div class="scanner-preview">
-                        <div class="scan-ring"></div>
-                        <div class="scan-ring"></div>
-                        <div class="scan-ring"></div>
-                        <i class="fas fa-eye"></i>
-                    </div>
+            <div class="supported-platforms">
+                <span>Supported:</span>
+                <i class="fab fa-twitter" title="Twitter/X"></i>
+                <i class="fab fa-facebook" title="Facebook"></i>
+                <i class="fab fa-instagram" title="Instagram"></i>
+                <i class="fab fa-youtube" title="YouTube"></i>
+                <i class="fab fa-tiktok" title="TikTok"></i>
+                <i class="fab fa-reddit" title="Reddit"></i>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Section -->
+<section class="stats-section">
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-card" data-delay="0">
+                <div class="stat-icon">
+                    <i class="fas fa-search-plus"></i>
+                </div>
+                <div class="stat-content">
+                    <h3><span class="counter" data-target="{{ total_scans }}">0</span>+</h3>
+                    <p>Total Scans</p>
+                </div>
+            </div>
+
+            <div class="stat-card" data-delay="100">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3><span class="counter" data-target="98" data-suffix=".4%">0</span></h3>
+                    <p>Accuracy Rate</p>
+                </div>
+            </div>
+
+            <div class="stat-card" data-delay="200">
+                <div class="stat-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>&lt; <span class="counter" data-target="30">0</span>s</h3>
+                    <p>Avg Analysis Time</p>
+                </div>
+            </div>
+
+            <div class="stat-card" data-delay="300">
+                <div class="stat-icon">
+                    <i class="fas fa-globe"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>24/7</h3>
+                    <p>Global Availability</p>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <!-- Quick Scan Section -->
-    <section class="quick-scan">
-        <div class="container">
-            <div class="quick-scan-card">
-                <h2><i class="fas fa-bolt"></i> Quick URL Scan</h2>
-                <p>Paste a social media URL to instantly check its authenticity</p>
+<!-- Features Section -->
+<section class="features-section">
+    <div class="container">
+        <h2 class="section-title">Powerful Features</h2>
+        <p class="section-subtitle">Comprehensive tools to combat digital deception</p>
 
-                <form method="post" action="{% url 'scan_url' %}" class="quick-scan-form">
-                    {% csrf_token %}
-                    <div class="input-group">
-                        <input type="url" name="url" placeholder="https://twitter.com/user/status/..." required>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-search"></i> Analyze
-                        </button>
-                    </div>
-                </form>
-
-                <div class="supported-platforms">
-                    <span>Supported:</span>
-                    <i class="fab fa-twitter" title="Twitter/X"></i>
-                    <i class="fab fa-facebook" title="Facebook"></i>
-                    <i class="fab fa-instagram" title="Instagram"></i>
-                    <i class="fab fa-youtube" title="YouTube"></i>
-                    <i class="fab fa-tiktok" title="TikTok"></i>
-                    <i class="fab fa-reddit" title="Reddit"></i>
+        <div class="features-grid-expanded">
+            <div class="feature-card" data-delay="0">
+                <div class="feature-card-icon">
+                    <i class="fas fa-image"></i>
                 </div>
+                <h3>Multi-Modal Detection</h3>
+                <p>Analyze images, videos, and audio files with specialized AI models for each media type.</p>
+            </div>
+
+            <div class="feature-card" data-delay="100">
+                <div class="feature-card-icon">
+                    <i class="fas fa-fire-alt"></i>
+                </div>
+                <h3>XAI Heatmaps</h3>
+                <p>Visual explanations showing exactly which regions of media have been manipulated.</p>
+            </div>
+
+            <div class="feature-card" data-delay="200">
+                <div class="feature-card-icon">
+                    <i class="fas fa-fingerprint"></i>
+                </div>
+                <h3>Forensic History</h3>
+                <p>Check if content has been used before in known disinformation campaigns.</p>
+            </div>
+
+            <div class="feature-card" data-delay="300">
+                <div class="feature-card-icon">
+                    <i class="fas fa-link"></i>
+                </div>
+                <h3>Social Media Scanner</h3>
+                <p>Analyze social media URLs for authenticity and domain trust scoring.</p>
+            </div>
+
+            <div class="feature-card" data-delay="400">
+                <div class="feature-card-icon">
+                    <i class="fas fa-chart-pie"></i>
+                </div>
+                <h3>Trust Scores</h3>
+                <p>Get comprehensive trust scores combining multiple detection metrics.</p>
+            </div>
+
+            <div class="feature-card" data-delay="500">
+                <div class="feature-card-icon">
+                    <i class="fas fa-flag"></i>
+                </div>
+                <h3>Report Content</h3>
+                <p>Report suspicious content for expert review and community protection.</p>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <!-- Stats Section -->
-    <section class="stats-section">
-        <div class="container">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-search-plus"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3>{{ total_scans }}+</h3>
-                        <p>Total Scans</p>
-                    </div>
-                </div>
+<!-- How It Works -->
+<section class="how-it-works">
+    <div class="container">
+        <h2 class="section-title">How It Works</h2>
+        <p class="section-subtitle">Four simple steps to verify any digital content</p>
 
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3>98.4%</h3>
-                        <p>Accuracy Rate</p>
-                    </div>
-                </div>
+        <div class="steps-grid">
+            <div class="step-card" data-delay="0">
+                <div class="step-number">1</div>
+                <h3>Upload Media</h3>
+                <p>Drag & drop or select an image, video, or audio file to analyze.</p>
+            </div>
 
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3>< 30s</h3>
-                        <p>Avg Analysis Time</p>
-                    </div>
-                </div>
+            <div class="step-card" data-delay="150">
+                <div class="step-number">2</div>
+                <h3>AI Analysis</h3>
+                <p>Our forensic engine runs 12+ detection techniques simultaneously.</p>
+            </div>
 
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-globe"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3>24/7</h3>
-                        <p>Global Availability</p>
-                    </div>
-                </div>
+            <div class="step-card" data-delay="300">
+                <div class="step-number">3</div>
+                <h3>XAI Results</h3>
+                <p>Get visual heatmaps showing exactly where manipulation was detected.</p>
+            </div>
+
+            <div class="step-card" data-delay="450">
+                <div class="step-number">4</div>
+                <h3>Take Action</h3>
+                <p>Download reports, share results, or report suspicious content.</p>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <!-- Features Section -->
-    <section class="features-section">
-        <div class="container">
-            <h2 class="section-title">Powerful Features</h2>
-            <p class="section-subtitle">Comprehensive tools to combat digital deception</p>
+<!-- Recent Scans -->
+{% if recent_scans %}
+<section class="recent-scans-section">
+    <div class="container">
+        <h2 class="section-title">Recent Scans</h2>
+        <p class="section-subtitle">Latest analysis results from the community</p>
 
-            <div class="features-grid-expanded">
-                <div class="feature-card">
-                    <div class="feature-card-icon">
-                        <i class="fas fa-image"></i>
-                    </div>
-                    <h3>Multi-Modal Detection</h3>
-                    <p>Analyze images, videos, and audio files with specialized AI models for each media type.</p>
+        <div class="recent-scans-grid">
+            {% for scan in recent_scans %}
+            <div class="recent-scan-card scan-badge-{{ scan.scan_result }}" data-delay="{{ forloop.counter0|add:1 }}">
+                <div class="scan-badge scan-badge-{{ scan.scan_result }}">
+                    {{ scan.scan_result|title }}
                 </div>
-
-                <div class="feature-card">
-                    <div class="feature-card-icon">
-                        <i class="fas fa-fire-alt"></i>
-                    </div>
-                    <h3>XAI Heatmaps</h3>
-                    <p>Visual explanations showing exactly which regions of media have been manipulated.</p>
+                <div class="scan-info">
+                    <span class="scan-type">
+                        <i class="fas fa-file-image">&nbsp;</i> {{ scan.file_type|title }}
+                    </span>
+                    <span class="scan-confidence">{{ scan.confidence_score }}%</span>
                 </div>
-
-                <div class="feature-card">
-                    <div class="feature-card-icon">
-                        <i class="fas fa-fingerprint"></i>
-                    </div>
-                    <h3>Forensic History</h3>
-                    <p>Check if content has been used before in known disinformation campaigns.</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-card-icon">
-                        <i class="fas fa-link"></i>
-                    </div>
-                    <h3>Social Media Scanner</h3>
-                    <p>Analyze social media URLs for authenticity and domain trust scoring.</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-card-icon">
-                        <i class="fas fa-chart-pie"></i>
-                    </div>
-                    <h3>Trust Scores</h3>
-                    <p>Get comprehensive trust scores combining multiple detection metrics.</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-card-icon">
-                        <i class="fas fa-flag"></i>
-                    </div>
-                    <h3>Report Content</h3>
-                    <p>Report suspicious content for expert review and community protection.</p>
-                </div>
+                <div class="scan-time">{{ scan.created_at|timesince }} ago</div>
             </div>
+            {% endfor %}
         </div>
-    </section>
 
-    <!-- Recent Scans -->
-    {% if recent_scans %}
-    <section class="recent-scans-section">
-        <div class="container">
-            <h2 class="section-title">Recent Scans</h2>
-            <div class="recent-scans-grid">
-                {% for scan in recent_scans %}
-                <div class="recent-scan-card">
-                    <div class="scan-badge scan-badge-{{ scan.scan_result }}">
-                        {{ scan.scan_result|title }}
-                    </div>
-                    <div class="scan-info">
-                        <span class="scan-type">
-                            <i class="fas fa-{{ 'file-image' }}">&nbsp;</i> {{ scan.file_type|title }}
-                        </span>
-                        <span class="scan-confidence">{{ scan.confidence_score }}%</span>
-                    </div>
-                    <div class="scan-time">{{ scan.created_at|timesince }} ago</div>
-                </div>
-                {% endfor %}
-            </div>
-            <div class="text-center" style="margin-top: 2rem;">
-                <a href="{% url 'history' %}" class="btn btn-secondary">
-                    View All History <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
+        <div class="text-center" style="margin-top: 2rem;">
+            <a href="{% url 'history' %}" class="btn btn-secondary" style="padding: 1rem 2rem; border-radius: 12px;">
+                View All History <i class="fas fa-arrow-right"></i>
+            </a>
         </div>
-    </section>
-    {% endif %}
+    </div>
+</section>
+{% endif %}
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-brand">
+<!-- Footer -->
+<footer class="footer">
+    <div class="container">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <div class="brand-logo">
                     <i class="fas fa-shield-alt"></i>
                     <span>VeriVision</span>
-                    <p>Fighting digital deception with AI-powered detection.</p>
                 </div>
-
-                <div class="footer-links">
-                    <h4>Quick Links</h4>
-                    <ul>
-                        <li><a href="{% url 'home' %}">Home</a></li>
-                        <li><a href="{% url 'scan' %}">Scan</a></li>
-                        <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
-                        <li><a href="{% url 'history' %}">History</a></li>
-                    </ul>
-{% if user.is_authenticated %}                <li><a href="{% url 'profile' %}"><i class="fas fa-user-circle"></i> {{ user.username }}</a></li>                <li><a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>                {% else %}                <li><a href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Login</a></li>                <li><a href="{% url 'register' %}"><i class="fas fa-user-plus"></i> Register</a></li>                {% endif %}
-                </div>
-
-                <div class="footer-links">
-                    <h4>Resources</h4>
-                    <ul>
-                        <li><a href="#">Documentation</a></li>
-                        <li><a href="#">API Access</a></li>
-                        <li><a href="{% url 'report' %}">Report Content</a></li>
-                        <li><a href="#">Contact</a></li>
-                    </ul>
-{% if user.is_authenticated %}                <li><a href="{% url 'profile' %}"><i class="fas fa-user-circle"></i> {{ user.username }}</a></li>                <li><a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>                {% else %}                <li><a href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Login</a></li>                <li><a href="{% url 'register' %}"><i class="fas fa-user-plus"></i> Register</a></li>                {% endif %}
-                </div>
-
-                <div class="footer-social">
-                    <h4>Connect</h4>
-                    <div class="social-links">
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-github"></i></a>
-                        <a href="#"><i class="fab fa-linkedin"></i></a>
-                        <a href="#"><i class="fab fa-discord"></i></a>
-                    </div>
-                </div>
+                <p>Fighting digital deception with AI-powered detection.</p>
             </div>
 
-            <div class="footer-bottom">
-                <p>&copy; 2024 VeriVision. All rights reserved. | Powered by Explainable AI</p>
+            <div class="footer-links">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="{% url 'home' %}">Home</a></li>
+                    <li><a href="{% url 'scan' %}">Scan</a></li>
+                    <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                    <li><a href="{% url 'history' %}">History</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-links">
+                <h4>Resources</h4>
+                <ul>
+                    <li><a href="#">Documentation</a></li>
+                    <li><a href="#">API Access</a></li>
+                    <li><a href="{% url 'report' %}">Report Content</a></li>
+                    <li><a href="#">Contact</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-social">
+                <h4>Connect</h4>
+                <div class="social-links">
+                    <a href="#"><i class="fab fa-twitter"></i></a>
+                    <a href="#"><i class="fab fa-github"></i></a>
+                    <a href="#"><i class="fab fa-linkedin"></i></a>
+                    <a href="#"><i class="fab fa-discord"></i></a>
+                </div>
             </div>
         </div>
-    </footer>
 
-    <script src="/static/js/main.js"></script>
-</body>
-</html>
+        <div class="footer-bottom">
+            <p>&copy; {% now "Y" %} VeriVision. All rights reserved. | Powered by Explainable AI</p>
+        </div>
+    </div>
+</footer>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    // Animated Counters
+    function animateCounters() {
+        document.querySelectorAll('.counter').forEach(counter => {
+            if (counter.dataset.animated) return;
+            const target = parseInt(counter.dataset.target);
+            const suffix = counter.dataset.suffix || '';
+            const duration = 2000;
+            const step = target / (duration / 16);
+            let current = 0;
+
+            const timer = setInterval(() => {
+                current += step;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                counter.textContent = Math.floor(current) + suffix;
+            }, 16);
+
+            counter.dataset.animated = 'true';
+        });
+    }
+
+    // Intersection Observer for scroll animations
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const delay = entry.target.dataset.delay || 0;
+                setTimeout(() => {
+                    entry.target.classList.add('animate-in');
+                }, parseInt(delay));
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
+
+    // Observe stat cards
+    document.querySelectorAll('.stat-card').forEach(el => {
+        observer.observe(el);
+    });
+
+    // Observe feature cards
+    document.querySelectorAll('.feature-card').forEach(el => {
+        observer.observe(el);
+    });
+
+    // Observe step cards
+    document.querySelectorAll('.step-card').forEach(el => {
+        observer.observe(el);
+    });
+
+    // Observe recent scan cards
+    document.querySelectorAll('.recent-scan-card').forEach(el => {
+        observer.observe(el);
+    });
+
+    // Trigger counters when stats section is visible
+    const statsObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                animateCounters();
+                statsObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.3 });
+
+    const statsSection = document.querySelector('.stats-section');
+    if (statsSection) statsObserver.observe(statsSection);
+
+    // Smooth navbar background on scroll
+    const navbar = document.querySelector('.navbar');
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 50) {
+            navbar.style.background = 'rgba(21, 25, 52, 0.95)';
+            navbar.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.3)';
+        } else {
+            navbar.style.background = 'rgba(21, 25, 52, 0.85)';
+            navbar.style.boxShadow = 'none';
+        }
+    });
+})();
+</script>
+{% endblock %}

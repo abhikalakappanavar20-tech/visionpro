@@ -157,27 +157,37 @@ def is_webcam_capture(image_path: str) -> bool:
         from PIL.ExifTags import TAGS
         import os
 
-        # Check file name
+        # Check file name - strong indicator
         filename = os.path.basename(image_path).lower()
         if 'webcam' in filename or 'capture' in filename:
             return True
 
-        # Check EXIF data
         image = Image.open(image_path)
-        exif = image._getexif()
-
-        # No EXIF data = likely canvas-created (webcam or screenshot)
-        if not exif or len(exif) < 5:
-            return True
-
-        # Check dimensions (common webcam resolutions)
         width, height = image.size
+
+        # Check dimensions (common webcam resolutions) - strong indicator
         common_webcam_resolutions = [
             (640, 480), (320, 240), (1280, 720),
-            (1920, 1080), (1280, 1024)
+            (1920, 1080), (1280, 1024), (2560, 1440)
         ]
-        # Note: This is a weak indicator, so we don't rely on it alone
+        if (width, height) in common_webcam_resolutions:
+            return True
 
+        # Check EXIF data - but ONLY for JPEG/TIFF formats
+        # PNG, WEBP, GIF typically don't have EXIF, so missing EXIF is normal
+        fmt = image.format.lower() if image.format else ''
+        if fmt in ('jpeg', 'jpg', 'tiff', 'tif'):
+            try:
+                exif = image._getexif()
+                if not exif or len(exif) < 5:
+                    # JPEG with no EXIF is suspicious but not necessarily webcam
+                    # Require additional evidence (common webcam resolution)
+                    return False
+            except Exception:
+                # Can't read EXIF from JPEG - possible webcam/screenshot
+                return False
+
+        # For non-JPEG formats, don't assume webcam just because of missing EXIF
         return False
 
     except Exception:

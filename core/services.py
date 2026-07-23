@@ -1,49 +1,44 @@
 """
 AI Detection Services for VeriVision
-Real Deepfake Detection Engine with Forensic Analysis
+Real Deepfake Detection Engine with Forensic + ML Analysis
 """
-import random
 import hashlib
-import json
 import os
 import tempfile
-from datetime import datetime, timedelta
+import logging
 from django.utils import timezone
 from .models import ForensicDatabase
+
+logger = logging.getLogger(__name__)
 
 
 class DeepfakeAnalyzer:
     """
-    Advanced Deepfake Detection Engine with Real Forensic Analysis
+    Deepfake Detection Engine
 
-    Uses actual image forensics techniques:
-    - ELA (Error Level Analysis)
-    - Metadata/EXIF Analysis
-    - Noise Pattern Analysis
-    - Compression Detection
-    - Color Histogram Analysis
-    - AI Generator Source Detection
+    Uses real forensic analysis + pre-trained AI models:
+    - Classical forensics: ELA, metadata, noise, compression, color, spectral
+    - AI models: ResNet-18 (image), R3D-18 (video), Wav2Vec2 (audio)
+    - Source detection: AI generator signature matching
+    - Score fusion: Weighted combination of forensics + AI model
     """
 
     def __init__(self):
-        # Import forensic pipeline
         try:
             from .analyzers import ForensicPipeline
             self.forensic_pipeline = ForensicPipeline()
             self.use_real_analysis = True
         except ImportError as e:
-            print(f"Warning: Could not import forensic pipeline: {e}")
-            print("Falling back to simulated analysis")
+            logger.error(f"Could not import forensic pipeline: {e}")
             self.use_real_analysis = False
             self.forensic_pipeline = None
 
-        # Analysis stages for UI feedback
         self.analysis_stages = [
             "Extracting metadata...",
-            "Analyzing facial landmarks...",
-            "Checking frequency domain artifacts...",
-            "Detecting compression inconsistencies...",
-            "Running forensic database check...",
+            "Running classical forensic analysis...",
+            "Running AI deepfake detection model...",
+            "Detecting AI generator source...",
+            "Fusing forensic + AI scores...",
             "Generating explainable heatmap...",
             "Calculating trust metrics...",
             "Finalizing analysis..."
@@ -51,7 +46,7 @@ class DeepfakeAnalyzer:
 
     def analyze_media(self, file, file_type, url=None):
         """
-        Main analysis method that processes media and returns detection results
+        Main analysis method that processes media and returns detection results.
 
         Args:
             file: UploadedFile object
@@ -63,34 +58,51 @@ class DeepfakeAnalyzer:
         """
         start_time = timezone.now()
 
-        if self.use_real_analysis:
-            if file_type == 'image':
-                return self._analyze_with_forensics(file, start_time)
-            if file_type == 'video':
-                return self._analyze_video_with_forensics(file, start_time)
-            if file_type == 'audio':
-                return self._analyze_audio_with_forensics(file, start_time)
+        if not self.use_real_analysis:
+            return {
+                'scan_result': 'error',
+                'confidence_score': 0,
+                'trust_score': 0,
+                'forensic_match': False,
+                'heatmap_data': {'hotspots': [], 'total_hotspots': 0, 'intensity_level': 'none'},
+                'analysis_details': {
+                    'error': 'Forensic pipeline not available. Please install required dependencies.'
+                },
+                'forensic_data': None,
+                'processing_time': 0,
+            }
 
-        # Fallback to simulation for unsupported types or missing pipeline
-        return self._analyze_with_simulation(file, file_type, url, start_time)
+        if file_type == 'image':
+            return self._analyze_with_forensics(file, start_time)
+        elif file_type == 'video':
+            return self._analyze_video_with_forensics(file, start_time)
+        elif file_type == 'audio':
+            return self._analyze_audio_with_forensics(file, start_time)
+        else:
+            return {
+                'scan_result': 'error',
+                'confidence_score': 0,
+                'trust_score': 0,
+                'forensic_match': False,
+                'heatmap_data': {'hotspots': [], 'total_hotspots': 0, 'intensity_level': 'none'},
+                'analysis_details': {
+                    'error': f'Unsupported file type: {file_type}'
+                },
+                'forensic_data': None,
+                'processing_time': (timezone.now() - start_time).total_seconds(),
+            }
 
     def _analyze_with_forensics(self, file, start_time):
-        """
-        Use real forensic pipeline for image analysis
-        """
-        # Save uploaded file to temp location
+        """Use real forensic pipeline + AI model for image analysis."""
         temp_path = None
         try:
-            # Create temp file
             with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.name)[1]) as tmp_file:
                 for chunk in file.chunks():
                     tmp_file.write(chunk)
                 temp_path = tmp_file.name
 
-            # Run forensic analysis
             forensic_results = self.forensic_pipeline.analyze_image(temp_path)
 
-            # Check forensic database for hash match
             with open(temp_path, 'rb') as f:
                 file_hash = hashlib.sha256(f.read()).hexdigest()
 
@@ -98,31 +110,34 @@ class DeepfakeAnalyzer:
                 content_hash=file_hash[:16]
             ).exists()
 
-            # Add database match to results
             forensic_results['forensic_match'] = forensic_match
-
-            # Add file info
             forensic_results['file_size'] = file.size
             forensic_results['file_hash'] = file_hash[:16]
+            forensic_results['processing_time'] = (timezone.now() - start_time).total_seconds()
 
             return forensic_results
 
         except Exception as e:
-            print(f"Forensic analysis failed: {str(e)}")
-            # Fallback to simulation
-            return self._analyze_with_simulation(file, 'image', None, start_time)
+            logger.error(f"Forensic image analysis failed: {e}")
+            return {
+                'scan_result': 'error',
+                'confidence_score': 0,
+                'trust_score': 0,
+                'forensic_match': False,
+                'heatmap_data': {'hotspots': [], 'total_hotspots': 0, 'intensity_level': 'none'},
+                'analysis_details': {'error': f'Image analysis failed: {e}'},
+                'forensic_data': None,
+                'processing_time': (timezone.now() - start_time).total_seconds(),
+            }
         finally:
-            # Clean up temp file
             if temp_path and os.path.exists(temp_path):
                 try:
                     os.remove(temp_path)
-                except:
+                except OSError:
                     pass
 
     def _analyze_video_with_forensics(self, file, start_time):
-        """
-        Use the forensic pipeline for video analysis.
-        """
+        """Use the forensic pipeline + AI model for video analysis."""
         temp_path = None
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.name)[1]) as tmp_file:
@@ -130,7 +145,7 @@ class DeepfakeAnalyzer:
                     tmp_file.write(chunk)
                 temp_path = tmp_file.name
 
-            forensic_results = self.forensic_pipeline.analyze_video(tmp_path)
+            forensic_results = self.forensic_pipeline.analyze_video(temp_path)
 
             with open(temp_path, 'rb') as f:
                 file_hash = hashlib.sha256(f.read()).hexdigest()
@@ -140,23 +155,31 @@ class DeepfakeAnalyzer:
             ).exists()
             forensic_results['file_size'] = file.size
             forensic_results['file_hash'] = file_hash[:16]
+            forensic_results['processing_time'] = (timezone.now() - start_time).total_seconds()
 
             return forensic_results
 
         except Exception as e:
-            print(f"Video forensic analysis failed: {str(e)}")
-            return self._analyze_with_simulation(file, 'video', None, start_time)
+            logger.error(f"Video forensic analysis failed: {e}")
+            return {
+                'scan_result': 'error',
+                'confidence_score': 0,
+                'trust_score': 0,
+                'forensic_match': False,
+                'heatmap_data': {'hotspots': [], 'total_hotspots': 0, 'intensity_level': 'none'},
+                'analysis_details': {'error': f'Video analysis failed: {e}'},
+                'forensic_data': None,
+                'processing_time': (timezone.now() - start_time).total_seconds(),
+            }
         finally:
             if temp_path and os.path.exists(temp_path):
                 try:
                     os.remove(temp_path)
-                except:
+                except OSError:
                     pass
 
     def _analyze_audio_with_forensics(self, file, start_time):
-        """
-        Use the forensic pipeline for audio analysis.
-        """
+        """Use the forensic pipeline + AI model for audio analysis."""
         temp_path = None
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.name)[1]) as tmp_file:
@@ -164,7 +187,7 @@ class DeepfakeAnalyzer:
                     tmp_file.write(chunk)
                 temp_path = tmp_file.name
 
-            forensic_results = self.forensic_pipeline.analyze_audio(tmp_path)
+            forensic_results = self.forensic_pipeline.analyze_audio(temp_path)
 
             with open(temp_path, 'rb') as f:
                 file_hash = hashlib.sha256(f.read()).hexdigest()
@@ -174,338 +197,249 @@ class DeepfakeAnalyzer:
             ).exists()
             forensic_results['file_size'] = file.size
             forensic_results['file_hash'] = file_hash[:16]
+            forensic_results['processing_time'] = (timezone.now() - start_time).total_seconds()
 
             return forensic_results
 
         except Exception as e:
-            print(f"Audio forensic analysis failed: {str(e)}")
-            return self._analyze_with_simulation(file, 'audio', None, start_time)
+            logger.error(f"Audio forensic analysis failed: {e}")
+            return {
+                'scan_result': 'error',
+                'confidence_score': 0,
+                'trust_score': 0,
+                'forensic_match': False,
+                'heatmap_data': {'hotspots': [], 'total_hotspots': 0, 'intensity_level': 'none'},
+                'analysis_details': {'error': f'Audio analysis failed: {e}'},
+                'forensic_data': None,
+                'processing_time': (timezone.now() - start_time).total_seconds(),
+            }
         finally:
             if temp_path and os.path.exists(temp_path):
                 try:
                     os.remove(temp_path)
-                except:
+                except OSError:
                     pass
-
-    def _analyze_with_simulation(self, file, file_type, url, start_time):
-        """
-        Fallback simulated analysis (legacy behavior)
-        """
-        # Read file data for analysis
-        file.seek(0)
-        file_data = file.read()
-        file_size = len(file_data)
-        file_hash = hashlib.sha256(file_data).hexdigest()[:16]
-
-        # Simulate analysis with weighted randomness
-        analysis_result = self._run_detection_simulation(
-            file_data, file_size, file_type, file_hash, url
-        )
-
-        # Calculate processing time
-        processing_time = (timezone.now() - start_time).total_seconds()
-
-        # Add processing time to result
-        analysis_result['processing_time'] = processing_time
-
-        return analysis_result
 
     def analyze_url(self, url):
         """
-        Analyze social media URL for authenticity
+        Analyze social media URL for authenticity.
+
+        Actually fetches the URL content, extracts any media,
+        and analyzes it through the forensic pipeline.
         """
         start_time = timezone.now()
 
-        # Extract domain
-        from urllib.parse import urlparse
-        parsed = urlparse(url)
-        domain = parsed.netloc.lower()
+        try:
+            import requests
+            from urllib.parse import urlparse
 
-        # Domain trust scoring
-        domain_trust_scores = {
-            'twitter.com': 75,
-            'x.com': 72,
-            'facebook.com': 70,
-            'instagram.com': 68,
-            'youtube.com': 80,
-            'tiktok.com': 65,
-            'linkedin.com': 85,
-            'reddit.com': 78,
-            'whatsapp.com': 90,
-        }
+            parsed = urlparse(url)
+            domain = parsed.netloc.lower()
 
-        base_score = domain_trust_scores.get(domain, 50)
+            # Domain trust scoring (based on platform verification rigor)
+            domain_trust_scores = {
+                'twitter.com': 75, 'x.com': 72,
+                'facebook.com': 70, 'instagram.com': 68,
+                'youtube.com': 80, 'tiktok.com': 65,
+                'linkedin.com': 85, 'reddit.com': 78,
+            }
+            base_score = domain_trust_scores.get(domain, 50)
 
-        # Simulate analysis
-        result = {
-            'scan_result': random.choice(['real', 'fake', 'suspicious']),
-            'confidence_score': random.uniform(70, 98),
-            'trust_score': int(base_score + random.uniform(-10, 10)),
-            'forensic_match': random.choice([True, False]),
-            'heatmap_data': self._generate_url_heatmap(),
-            'analysis_details': {
+            # Fetch URL content
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            response = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
+            response.raise_for_status()
+
+            content_type = response.headers.get('Content-Type', '')
+            content_length = len(response.content)
+
+            # Check if URL points directly to media
+            media_result = None
+            if any(ct in content_type for ct in ['image/', 'video/', 'audio/']):
+                # Direct media URL - download and analyze
+                media_result = self._analyze_media_url(url, response.content, content_type, start_time)
+            else:
+                # HTML page - try to extract media URLs
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                media_urls = []
+                for tag in soup.find_all(['img', 'video', 'source']):
+                    src = tag.get('src') or tag.get('data-src')
+                    if src:
+                        # Make absolute URL
+                        if src.startswith('//'):
+                            src = 'https:' + src
+                        elif src.startswith('/'):
+                            src = f'{parsed.scheme}://{parsed.netloc}{src}'
+                        media_urls.append(src)
+
+                # Also check OpenGraph meta tags for media
+                for meta in soup.find_all('meta'):
+                    prop = meta.get('property', '') or meta.get('name', '')
+                    if 'image' in prop or 'video' in prop:
+                        content = meta.get('content', '')
+                        if content and content.startswith('http'):
+                            media_urls.append(content)
+
+                if media_urls:
+                    # Analyze first media found
+                    media_result = self._analyze_media_url(
+                        media_urls[0], None, None, start_time
+                    )
+
+            # Build analysis details
+            analysis_details = {
                 'domain': domain,
                 'domain_trust_score': base_score,
-                'metadata_check': random.choice(['Consistent', 'Inconsistent']),
-                'ssl_valid': random.choice([True, False]),
-                'server_location': random.choice(['US', 'EU', 'Asia', 'Unknown']),
-                'analysis_notes': f"Social media content from {domain}"
-            },
-            'forensic_data': self._generate_forensic_data(url) if random.random() > 0.7 else None
-        }
+                'url': url,
+                'content_type': content_type,
+                'content_length': content_length,
+                'status_code': response.status_code,
+                'ssl_valid': parsed.scheme == 'https',
+                'media_found': media_result is not None,
+                'analysis_notes': f'Fetched and analyzed content from {domain}',
+            }
 
-        result['processing_time'] = (timezone.now() - start_time).total_seconds()
-
-        return result
-
-    def _run_detection_simulation(self, file_data, file_size, file_type, file_hash, url):
-        """
-        Simulate AI detection with weighted logic
-        """
-        # Base probability influenced by file size
-        fake_probability = 0.4  # Base 40% chance
-
-        # Larger files (compressed repeatedly) increase fake probability
-        if file_size > 5 * 1024 * 1024:  # > 5MB
-            fake_probability += 0.15
-        elif file_size < 50 * 1024:  # < 50KB (too small, suspicious)
-            fake_probability += 0.1
-
-        # File type specific adjustments
-        if file_type == 'image':
-            fake_probability += 0.05
-        elif file_type == 'video':
-            fake_probability -= 0.05
-        elif file_type == 'audio':
-            fake_probability += 0.1
-
-        # Roll for result
-        roll = random.random()
-
-        if roll < fake_probability:
-            scan_result = random.choice(['fake', 'manipulated'])
-            confidence = random.uniform(85, 99.5)
-            trust = random.randint(15, 45)
-        elif roll < fake_probability + 0.2:
-            scan_result = 'suspicious'
-            confidence = random.uniform(60, 84)
-            trust = random.randint(46, 65)
-        else:
-            scan_result = 'real'
-            confidence = random.uniform(80, 98)
-            trust = random.randint(75, 98)
-
-        # Generate heatmap (XAI visualization)
-        heatmap_data = self._generate_heatmap(scan_result)
-
-        # Generate forensic data
-        forensic_data = None
-        forensic_match = False
-        if random.random() > 0.75:  # 25% chance of forensic match
-            forensic_match = True
-            forensic_data = self._generate_forensic_data(file_hash)
-
-        # Build analysis details
-        analysis_details = {
-            'file_size_mb': round(file_size / (1024 * 1024), 2),
-            'hash': file_hash,
-            'metadata_analysis': self._analyze_metadata(file_type),
-            'compression_artifacts': random.choice(['Detected', 'Not Detected', 'Minimal']),
-            'noise_pattern': random.choice(['Natural', 'Artificial', 'Inconsistent']),
-            'biometric_consistency': random.choice(['High', 'Medium', 'Low']),
-            'technical_analysis': self._get_technical_analysis(file_type)
-        }
-
-        return {
-            'scan_result': scan_result,
-            'confidence_score': round(confidence, 2),
-            'trust_score': min(100, max(0, trust)),
-            'forensic_match': forensic_match,
-            'heatmap_data': heatmap_data,
-            'analysis_details': analysis_details,
-            'forensic_data': forensic_data
-        }
-
-    def _generate_heatmap(self, scan_result):
-        """
-        Generate XAI heatmap data for visualization
-        Returns coordinates for suspicious regions
-        """
-        if scan_result == 'real':
-            # Real content has minimal or no heatspots
-            num_hotspots = random.randint(0, 2)
-            intensity = 'low'
-        elif scan_result == 'suspicious':
-            num_hotspots = random.randint(2, 5)
-            intensity = 'medium'
-        else:  # fake or manipulated
-            num_hotspots = random.randint(4, 10)
-            intensity = 'high'
-
-        hotspots = []
-        regions = [
-            {'name': 'face_center', 'x_range': (30, 70), 'y_range': (20, 60)},
-            {'name': 'eyes', 'x_range': (35, 50), 'y_range': (25, 40)},
-            {'name': 'mouth', 'x_range': (40, 60), 'y_range': (55, 70)},
-            {'name': 'background', 'x_range': (0, 100), 'y_range': (60, 100)},
-            {'name': 'edges', 'x_range': (0, 20), 'y_range': (0, 100)},
-            {'name': 'edges_right', 'x_range': (80, 100), 'y_range': (0, 100)},
-        ]
-
-        for _ in range(num_hotspots):
-            region = random.choice(regions)
-            x = random.randint(*region['x_range'])
-            y = random.randint(*region['y_range'])
-
-            # Intensity based on scan result
-            if intensity == 'high':
-                radius = random.randint(8, 20)
-                intensity_value = random.uniform(0.7, 1.0)
-            elif intensity == 'medium':
-                radius = random.randint(5, 15)
-                intensity_value = random.uniform(0.4, 0.7)
+            if media_result:
+                # Use the actual media analysis results
+                result = {
+                    'scan_result': media_result.get('scan_result', 'unknown'),
+                    'confidence_score': media_result.get('confidence_score', 50),
+                    'trust_score': media_result.get('trust_score', 50),
+                    'forensic_match': media_result.get('forensic_match', False),
+                    'heatmap_data': media_result.get('heatmap_data', {
+                        'hotspots': [], 'total_hotspots': 0, 'intensity_level': 'none'
+                    }),
+                    'analysis_details': {
+                        **analysis_details,
+                        'media_analysis': media_result.get('forensic_details', {}),
+                        'ai_detection': media_result.get('ai_detection', {}),
+                    },
+                    'forensic_data': None,
+                    'processing_time': (timezone.now() - start_time).total_seconds(),
+                }
             else:
-                radius = random.randint(3, 10)
-                intensity_value = random.uniform(0.2, 0.5)
+                # No media found - analyze page metadata only
+                result = {
+                    'scan_result': 'unknown',
+                    'confidence_score': 0,
+                    'trust_score': base_score,
+                    'forensic_match': False,
+                    'heatmap_data': {'hotspots': [], 'total_hotspots': 0, 'intensity_level': 'none'},
+                    'analysis_details': {
+                        **analysis_details,
+                        'analysis_notes': f'No downloadable media found at {domain}. Page metadata analyzed only.',
+                    },
+                    'forensic_data': None,
+                    'processing_time': (timezone.now() - start_time).total_seconds(),
+                }
 
-            hotspots.append({
-                'x': x,
-                'y': y,
-                'radius': radius,
-                'intensity': round(intensity_value, 2),
-                'region': region['name']
-            })
+            return result
 
+        except requests.exceptions.Timeout:
+            return self._url_error_result(url, 'URL request timed out', start_time)
+        except requests.exceptions.ConnectionError:
+            return self._url_error_result(url, 'Could not connect to URL', start_time)
+        except requests.exceptions.HTTPError as e:
+            return self._url_error_result(url, f'HTTP error: {e.response.status_code}', start_time)
+        except ImportError:
+            return self._url_error_result(
+                url, 'requests/beautifulsoup4 not installed. Run: pip install requests beautifulsoup4',
+                start_time
+            )
+        except Exception as e:
+            logger.error(f"URL analysis failed: {e}")
+            return self._url_error_result(url, str(e), start_time)
+
+    def _analyze_media_url(self, url, content_bytes, content_type, start_time):
+        """Download media from URL and analyze through forensic pipeline."""
+        temp_path = None
+        try:
+            # Determine file extension from content type
+            ext_map = {
+                'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif',
+                'image/webp': '.webp', 'video/mp4': '.mp4', 'video/webm': '.webm',
+                'audio/mpeg': '.mp3', 'audio/wav': '.wav', 'audio/ogg': '.ogg',
+            }
+            ext = '.bin'
+            for ct, e in ext_map.items():
+                if ct in (content_type or ''):
+                    ext = e
+                    break
+
+            # Download if not already fetched
+            if content_bytes is None:
+                import requests
+                response = requests.get(url, timeout=30)
+                response.raise_for_status()
+                content_bytes = response.content
+                content_type = response.headers.get('Content-Type', '')
+
+            # Determine file type
+            file_type = 'unknown'
+            if 'image' in (content_type or ''):
+                file_type = 'image'
+            elif 'video' in (content_type or ''):
+                file_type = 'video'
+            elif 'audio' in (content_type or ''):
+                file_type = 'audio'
+
+            # Save to temp file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp_file:
+                tmp_file.write(content_bytes)
+                temp_path = tmp_file.name
+
+            # Run through forensic pipeline
+            if file_type == 'image':
+                return self.forensic_pipeline.analyze_image(temp_path)
+            elif file_type == 'video':
+                return self.forensic_pipeline.analyze_video(temp_path)
+            elif file_type == 'audio':
+                return self.forensic_pipeline.analyze_audio(temp_path)
+            else:
+                return None
+
+        except Exception as e:
+            logger.error(f"Failed to analyze media URL {url}: {e}")
+            return None
+        finally:
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
+
+    def _url_error_result(self, url, error_msg, start_time):
+        """Return error result for failed URL analysis."""
         return {
-            'hotspots': hotspots,
-            'intensity_level': intensity,
-            'total_hotspots': num_hotspots
+            'scan_result': 'error',
+            'confidence_score': 0,
+            'trust_score': 0,
+            'forensic_match': False,
+            'heatmap_data': {'hotspots': [], 'total_hotspots': 0, 'intensity_level': 'none'},
+            'analysis_details': {
+                'url': url,
+                'error': error_msg,
+                'analysis_notes': f'URL analysis failed: {error_msg}',
+            },
+            'forensic_data': None,
+            'processing_time': (timezone.now() - start_time).total_seconds(),
         }
-
-    def _generate_url_heatmap(self):
-        """
-        Generate simplified heatmap for URL analysis
-        """
-        return {
-            'hotspots': [],
-            'intensity_level': 'none',
-            'total_hotspots': 0,
-            'note': 'URL analysis does not include visual heatmap'
-        }
-
-    def _generate_forensic_data(self, identifier):
-        """
-        Generate mock forensic history data
-        """
-        # Random date within last 2 years
-        days_ago = random.randint(30, 730)
-        first_seen = datetime.now() - timedelta(days=days_ago)
-
-        contexts = [
-            "Used in known botnet disinformation campaign",
-            "Found on multiple fake news platforms",
-            "Associated with coordinated influence operation",
-            "Originates from known manipulation source",
-            "Detected in previous scam investigations",
-            "Linked to fraudulent account networks"
-        ]
-
-        campaigns = [
-            "Operation Fake Storm 2023",
-            "Disinformation Network #47",
-            "Botnet Campaign Alpha",
-            "Coordinated Inauthentic Behavior",
-            "Unknown/Unattributed"
-        ]
-
-        return {
-            'first_seen': first_seen.strftime('%B %Y'),
-            'usage_count': random.randint(3, 50),
-            'context': random.choice(contexts),
-            'known_campaign': random.choice(campaigns),
-            'threat_level': random.choice(['Low', 'Medium', 'High', 'Critical']),
-            'verified': random.choice([True, False])
-        }
-
-    def _analyze_metadata(self, file_type):
-        """
-        Simulate metadata analysis
-        """
-        metadata_checks = {
-            'exif_data': random.choice(['Present', 'Missing', 'Inconsistent']),
-            'creation_date': random.choice(['Consistent', 'Suspicious', 'Missing']),
-            'software_signatures': random.choice(['Detected', 'Not Detected']),
-            'edit_history': random.choice(['Traces Found', 'Clean', 'Unknown'])
-        }
-
-        if file_type == 'image':
-            metadata_checks.update({
-                'camera_metadata': random.choice(['Present', 'Missing']),
-                'gps_data': random.choice(['Present', 'Stripped', 'Modified'])
-            })
-        elif file_type == 'video':
-            metadata_checks.update({
-                'codec_analysis': random.choice(['Standard', 'Suspicious']),
-                'frame_consistency': random.choice(['Consistent', 'Inconsistent'])
-            })
-        elif file_type == 'audio':
-            metadata_checks.update({
-                'spectral_analysis': random.choice(['Normal', 'Anomalous']),
-                'voice_pattern': random.choice(['Natural', 'Synthetic'])
-            })
-
-        return metadata_checks
-
-    def _get_technical_analysis(self, file_type):
-        """
-        Get technical analysis points based on file type
-        """
-        analyses = {
-            'image': [
-                "Facial landmark analysis completed",
-                "Frequency domain examination performed",
-                "Noise pattern analysis executed",
-                "ELA (Error Level Analysis) conducted",
-                "Lighting consistency verified"
-            ],
-            'video': [
-                "Frame-by-frame analysis completed",
-                "Temporal consistency verified",
-                "Deep interpolation detection performed",
-                "Motion artifact analysis executed",
-                "Audio-visual synchronization checked"
-            ],
-            'audio': [
-                "Spectrogram analysis completed",
-                "Voice biometric verification performed",
-                "Background noise consistency checked",
-                "Synthetic voice markers detected",
-                "Temporal pattern analysis executed"
-            ]
-        }
-
-        return analyses.get(file_type, ["Generic analysis performed"])
 
     def get_analysis_stages(self):
-        """
-        Return list of analysis stages for progress display
-        """
         return self.analysis_stages
 
 
 class ThreatLevelCalculator:
-    """
-    Calculate overall threat level based on multiple factors
-    """
+    """Calculate overall threat level based on multiple factors."""
 
     @staticmethod
     def calculate(scan_result, confidence_score, trust_score, forensic_match):
-        """
-        Calculate overall threat level (0-100)
-        """
         threat = 0
 
-        # Base threat from scan result
         if scan_result == 'fake':
             threat += 50
         elif scan_result == 'manipulated':
@@ -513,16 +447,13 @@ class ThreatLevelCalculator:
         elif scan_result == 'suspicious':
             threat += 25
 
-        # Confidence modifier
         if confidence_score > 90 and scan_result != 'real':
             threat += 20
         elif confidence_score > 80:
             threat += 10
 
-        # Trust score inverse
         threat += (100 - trust_score) * 0.3
 
-        # Forensic match bonus
         if forensic_match:
             threat += 15
 

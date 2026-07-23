@@ -1,0 +1,320 @@
+/* ===== DARK ANIMATED GRADIENT MESH BACKGROUND (Admin) ===== */
+.admin-main {
+    position: relative;
+    min-height: 100vh;
+    overflow: hidden;
+    background: linear-gradient(135deg, #0a0e27 0%, #111638 30%, #1a1040 60%, #0d1a2d 100%);
+    background-size: 400% 400%;
+    animation: adminBgShift 20s ease infinite;
+}
+
+@keyframes adminBgShift {
+    0%   { background-position: 0% 50%; }
+    25%  { background-position: 100% 0%; }
+    50%  { background-position: 100% 100%; }
+    75%  { background-position: 0% 100%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Gradient Orbs - Dark */
+.admin-main .gradient-orbs {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+}
+
+.admin-main .gradient-orbs .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    will-change: transform;
+}
+
+.admin-main .gradient-orbs .orb-1 {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(6, 182, 212, 0.2), transparent 70%);
+    top: -20%; left: -10%;
+    animation: aOrb1Move 22s ease-in-out infinite;
+}
+.admin-main .gradient-orbs .orb-2 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.18), transparent 70%);
+    top: 5%; right: -12%;
+    animation: aOrb2Move 26s ease-in-out infinite;
+}
+.admin-main .gradient-orbs .orb-3 {
+    width: 450px; height: 450px;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.15), transparent 70%);
+    bottom: -20%; left: 25%;
+    animation: aOrb3Move 24s ease-in-out infinite;
+}
+.admin-main .gradient-orbs .orb-4 {
+    width: 350px; height: 350px;
+    background: radial-gradient(circle, rgba(34, 197, 94, 0.12), transparent 70%);
+    top: 40%; left: 45%;
+    animation: aOrb4Move 20s ease-in-out infinite;
+}
+.admin-main .gradient-orbs .orb-5 {
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(236, 72, 153, 0.1), transparent 70%);
+    top: 60%; right: 20%;
+    animation: aOrb5Move 28s ease-in-out infinite;
+}
+
+@keyframes aOrb1Move {
+    0%   { transform: translate(0, 0) scale(1); }
+    25%  { transform: translate(80px, 60px) scale(1.1); }
+    50%  { transform: translate(40px, 120px) scale(0.92); }
+    75%  { transform: translate(-50px, 60px) scale(1.06); }
+    100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes aOrb2Move {
+    0%   { transform: translate(0, 0) scale(1); }
+    25%  { transform: translate(-100px, 80px) scale(1.08); }
+    50%  { transform: translate(-60px, -40px) scale(0.9); }
+    75%  { transform: translate(40px, -80px) scale(1.04); }
+    100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes aOrb3Move {
+    0%   { transform: translate(0, 0) scale(1); }
+    25%  { transform: translate(100px, -60px) scale(1.06); }
+    50%  { transform: translate(-80px, -100px) scale(0.94); }
+    75%  { transform: translate(-40px, 40px) scale(1.08); }
+    100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes aOrb4Move {
+    0%   { transform: translate(0, 0) scale(1); }
+    25%  { transform: translate(-80px, -80px) scale(1.12); }
+    50%  { transform: translate(120px, -40px) scale(0.9); }
+    75%  { transform: translate(60px, 80px) scale(1.06); }
+    100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes aOrb5Move {
+    0%   { transform: translate(0, 0) scale(1); }
+    25%  { transform: translate(60px, 100px) scale(0.95); }
+    50%  { transform: translate(-100px, 60px) scale(1.08); }
+    75%  { transform: translate(-40px, -60px) scale(0.98); }
+    100% { transform: translate(0, 0) scale(1); }
+}
+
+/* Shimmer Sweep - Dark */
+.admin-main .shimmer-sweep {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+.admin-main .shimmer-sweep::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(105deg, transparent 40%, rgba(99,102,241,0.06) 45%, rgba(99,102,241,0.1) 50%, rgba(99,102,241,0.06) 55%, transparent 60%);
+    animation: aShimmerSweep 6s ease-in-out infinite;
+}
+@keyframes aShimmerSweep {
+    0%   { left: -150%; }
+    100% { left: 150%; }
+}
+
+/* Dot Grid - Dark */
+.admin-main .dot-pattern {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1.2px, transparent 1.2px);
+    background-size: 24px 24px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Floating Shapes - Dark */
+.admin-main .floating-shapes {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+}
+.admin-main .floating-shapes .shape {
+    position: absolute;
+    opacity: 0.08;
+}
+.admin-main .floating-shapes .shape-1 {
+    top: 12%; left: 6%;
+    width: 55px; height: 55px;
+    border: 2px solid rgba(6, 182, 212, 0.25);
+    border-radius: 12px;
+    animation: aShape1 24s linear infinite;
+}
+.admin-main .floating-shapes .shape-2 {
+    top: 22%; right: 12%;
+    width: 40px; height: 40px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.2), transparent);
+    border-radius: 50%;
+    animation: aShape2 20s linear infinite;
+}
+.admin-main .floating-shapes .shape-3 {
+    bottom: 28%; left: 18%;
+    width: 45px; height: 45px;
+    border: 2px solid rgba(168, 85, 247, 0.2);
+    border-radius: 8px;
+    animation: aShape3 26s linear infinite;
+}
+.admin-main .floating-shapes .shape-4 {
+    top: 55%; right: 8%;
+    width: 50px; height: 50px;
+    border: 2px solid rgba(34, 197, 94, 0.2);
+    border-radius: 50%;
+    animation: aShape4 22s linear infinite;
+}
+.admin-main .floating-shapes .shape-5 {
+    top: 35%; left: 55%;
+    width: 30px; height: 30px;
+    background: linear-gradient(135deg, rgba(236,72,153,0.15), rgba(168,85,247,0.15));
+    border-radius: 6px;
+    transform: rotate(45deg);
+    animation: aShape5 18s linear infinite;
+}
+.admin-main .floating-shapes .shape-6 {
+    bottom: 18%; right: 28%;
+    width: 28px; height: 28px;
+    border: 2px solid rgba(245, 158, 11, 0.2);
+    border-radius: 6px;
+    animation: aShape6 28s linear infinite;
+}
+.admin-main .floating-shapes .shape-7 {
+    top: 6%; left: 42%;
+    width: 32px; height: 32px;
+    border: 2px solid rgba(6, 182, 212, 0.2);
+    border-radius: 50%;
+    animation: aShape7 23s linear infinite;
+}
+
+@keyframes aShape1 {
+    0%   { transform: translateY(0) rotate(0deg); }
+    50%  { transform: translateY(-35px) rotate(180deg); }
+    100% { transform: translateY(0) rotate(360deg); }
+}
+@keyframes aShape2 {
+    0%   { transform: translate(0, 0) scale(1); }
+    33%  { transform: translate(-25px, 35px) scale(1.2); }
+    66%  { transform: translate(25px, -15px) scale(0.8); }
+    100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes aShape3 {
+    0%   { transform: translateY(0) rotate(0deg); }
+    50%  { transform: translateY(45px) rotate(120deg); }
+    100% { transform: translateY(0) rotate(240deg); }
+}
+@keyframes aShape4 {
+    0%   { transform: translate(0, 0) rotate(0deg); }
+    50%  { transform: translate(35px, -25px) rotate(180deg); }
+    100% { transform: translate(0, 0) rotate(360deg); }
+}
+@keyframes aShape5 {
+    0%   { transform: rotate(45deg) scale(1); }
+    50%  { transform: rotate(225deg) scale(1.3); }
+    100% { transform: rotate(405deg) scale(1); }
+}
+@keyframes aShape6 {
+    0%   { transform: translate(0, 0) rotate(0deg); }
+    33%  { transform: translate(30px, -40px) rotate(90deg); }
+    66%  { transform: translate(-20px, -20px) rotate(200deg); }
+    100% { transform: translate(0, 0) rotate(360deg); }
+}
+@keyframes aShape7 {
+    0%   { transform: rotate(0deg) translateY(0); }
+    50%  { transform: rotate(180deg) translateY(-30px); }
+    100% { transform: rotate(360deg) translateY(0); }
+}
+
+/* Particles - Dark */
+.admin-main .particles {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+}
+.admin-main .particle {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0;
+    animation: aParticleBokeh linear infinite;
+}
+.admin-main .particle:nth-child(1) {
+    left: 8%; width: 6px; height: 6px;
+    background: rgba(6, 182, 212, 0.3);
+    box-shadow: 0 0 14px rgba(6, 182, 212, 0.2);
+    animation-duration: 20s; animation-delay: 0s;
+}
+.admin-main .particle:nth-child(2) {
+    left: 18%; width: 5px; height: 5px;
+    background: rgba(99, 102, 241, 0.25);
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
+    animation-duration: 24s; animation-delay: 3s;
+}
+.admin-main .particle:nth-child(3) {
+    left: 30%; width: 8px; height: 8px;
+    background: rgba(168, 85, 247, 0.2);
+    box-shadow: 0 0 16px rgba(168, 85, 247, 0.12);
+    animation-duration: 17s; animation-delay: 1s;
+}
+.admin-main .particle:nth-child(4) {
+    left: 42%; width: 4px; height: 4px;
+    background: rgba(6, 182, 212, 0.35);
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
+    animation-duration: 22s; animation-delay: 5s;
+}
+.admin-main .particle:nth-child(5) {
+    left: 55%; width: 6px; height: 6px;
+    background: rgba(34, 197, 94, 0.2);
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.12);
+    animation-duration: 19s; animation-delay: 2s;
+}
+.admin-main .particle:nth-child(6) {
+    left: 68%; width: 7px; height: 7px;
+    background: rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 14px rgba(59, 130, 246, 0.12);
+    animation-duration: 23s; animation-delay: 4s;
+}
+.admin-main .particle:nth-child(7) {
+    left: 78%; width: 5px; height: 5px;
+    background: rgba(236, 72, 153, 0.25);
+    box-shadow: 0 0 12px rgba(236, 72, 153, 0.15);
+    animation-duration: 21s; animation-delay: 0.5s;
+}
+.admin-main .particle:nth-child(8) {
+    left: 88%; width: 6px; height: 6px;
+    background: rgba(168, 85, 247, 0.2);
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.12);
+    animation-duration: 18s; animation-delay: 3.5s;
+}
+
+@keyframes aParticleBokeh {
+    0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+    8%   { opacity: 0.8; transform: translateY(80vh) scale(1); }
+    50%  { opacity: 0.35; }
+    92%  { opacity: 0.6; }
+    100% { transform: translateY(-10vh) scale(0.4); opacity: 0; }
+}
+
+/* Content above background */
+.admin-main > *:not(.gradient-orbs):not(.shimmer-sweep):not(.dot-pattern):not(.floating-shapes):not(.particles) {
+    position: relative;
+    z-index: 1;
+}
+
+@media (max-width: 768px) {
+    .admin-main .gradient-orbs .orb-1 { width: 350px; height: 350px; }
+    .admin-main .gradient-orbs .orb-2 { width: 300px; height: 300px; }
+    .admin-main .gradient-orbs .orb-3 { width: 250px; height: 250px; }
+    .admin-main .gradient-orbs .orb-4 { width: 200px; height: 200px; }
+    .admin-main .gradient-orbs .orb-5 { width: 180px; height: 180px; }
+    .admin-main .floating-shapes .shape { display: none; }
+}

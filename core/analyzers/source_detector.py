@@ -50,7 +50,7 @@ class SourceDetector(BaseAnalyzer):
     # AI Generator Signatures Database
     GENERATOR_SIGNATURES = {
         'Midjourney v5': {
-            'typical_resolutions': ['1024x1024', '2048x2048', '1024x1792'],
+            'typical_resolutions': ['1024x1024', '2048x2048', '1024x1792', '1792x1024', '1024x1536', '1536x1024'],
             'noise_pattern': {
                 'uniformity_range': (0.4, 0.6),
                 'distribution': 'non-uniform',
@@ -130,18 +130,18 @@ class SourceDetector(BaseAnalyzer):
             ]
         },
         'DALL-E 3': {
-            'typical_resolutions': ['1024x1024'],
+            'typical_resolutions': ['1024x1024', '1024x1536', '1792x1024', '1024x1792', '1536x1024'],
             'noise_pattern': {
-                'uniformity_range': (0.5, 0.7),
+                'uniformity_range': (0.5, 0.75),
                 'distribution': 'relatively_uniform',
                 'characteristics': ['smooth', 'low_texture_detail']
             },
             'color_signature': {
-                'saturation_range': (100, 150),
-                'contrast_range': (40, 70),
+                'saturation_range': (90, 160),
+                'contrast_range': (35, 75),
                 'characteristic': 'vivid_colors'
             },
-            'ela_threshold': (10, 25),
+            'ela_threshold': (8, 28),
             'metadata_patterns': {
                 'missing_exif': True,
                 'watermark_possible': True
@@ -150,9 +150,63 @@ class SourceDetector(BaseAnalyzer):
             'key_indicators': [
                 'Balanced vivid colors',
                 'Relatively smooth surfaces',
-                '1024x1024 resolution',
+                'Common resolutions: 1024x1024, 1024x1536, 1792x1024',
                 'Possible watermark',
-                'No EXIF data'
+                'No EXIF data',
+                'Portrait or square aspect ratio'
+            ]
+        },
+        'ChatGPT / DALL-E Portrait': {
+            'typical_resolutions': ['1024x1536', '1536x1024', '1024x1024', '1792x1024', '1024x1792'],
+            'noise_pattern': {
+                'uniformity_range': (0.55, 0.85),
+                'distribution': 'very_uniform',
+                'characteristics': ['extremely_smooth', 'studio_portrait_quality']
+            },
+            'color_signature': {
+                'saturation_range': (80, 140),
+                'contrast_range': (30, 65),
+                'characteristic': 'clean_portrait'
+            },
+            'ela_threshold': (5, 25),
+            'metadata_patterns': {
+                'missing_exif': True,
+                'software_signatures': []
+            },
+            'compression_artifacts': 'minimal',
+            'key_indicators': [
+                'Studio-style portrait with clean background',
+                'Extremely smooth skin texture',
+                'No EXIF data',
+                'Portrait aspect ratio common',
+                'Professional headshot appearance',
+                'Uniform or gradient background'
+            ]
+        },
+        'Generic AI Portrait': {
+            'typical_resolutions': ['512x512', '768x768', '1024x1024', '1024x1536', '1536x1024', '1024x1792', '1792x1024', '2048x2048'],
+            'noise_pattern': {
+                'uniformity_range': (0.5, 0.9),
+                'distribution': 'uniform',
+                'characteristics': ['smooth', 'low_texture', 'studio_quality']
+            },
+            'color_signature': {
+                'saturation_range': (70, 160),
+                'contrast_range': (25, 80),
+                'characteristic': 'clean_digital'
+            },
+            'ela_threshold': (5, 30),
+            'metadata_patterns': {
+                'missing_exif': True,
+                'software_signatures': []
+            },
+            'compression_artifacts': 'minimal',
+            'key_indicators': [
+                'AI-generated portrait characteristics',
+                'Smooth or uniform background',
+                'Missing camera EXIF data',
+                'Perfect or near-perfect facial features',
+                'Digital rendering artifacts'
             ]
         },
         'Stable Diffusion': {
@@ -386,18 +440,18 @@ class SourceDetector(BaseAnalyzer):
 
                 logger.info(f"Source detection: {generator_name} = {match_score}% (resolution: {resolution})")
 
-                # Only add if there's a strong match (multiple characteristics)
+                # Add matches with reasonable confidence
                 # Real photos might match 1-2 characteristics by chance
                 # AI-generated content matches multiple characteristics
-                if match_score > 30:  # Require higher confidence
+                if match_score > 20:  # Lowered from 30 to catch more AI content
                     indicators = self._get_matching_indicators(
                         forensic_results,
                         signature,
                         match_score
                     )
 
-                    # Only report if multiple key indicators match
-                    if len(indicators) >= 2:
+                    # Only report if key indicators match
+                    if len(indicators) >= 1:
                         detected_sources.append({
                             'source': generator_name,
                             'confidence': round(match_score, 2),
@@ -411,10 +465,10 @@ class SourceDetector(BaseAnalyzer):
             # Sort by confidence (highest first)
             detected_sources.sort(key=lambda x: x['confidence'], reverse=True)
 
-            # Filter out low-confidence matches (increased threshold to 30% to avoid false positives)
+            # Filter out very low-confidence matches
             # Real photos often match 1-2 AI characteristics, but AI-generated content matches multiple
             detected_sources = [
-                s for s in detected_sources if s['confidence'] > 30
+                s for s in detected_sources if s['confidence'] > 20
             ]
 
             # Fallback generic AI detection for suspicious images without a strong generator match
@@ -424,32 +478,46 @@ class SourceDetector(BaseAnalyzer):
                 noise_result = forensic_results.get('noise', {})
                 color_result = forensic_results.get('color', {})
                 compression_result = forensic_results.get('compression', {})
+                ai_artifacts = forensic_results.get('ai_artifacts', {})
 
                 suspicious_signals = 0
                 if not metadata_result.get('has_exif', True):
                     suspicious_signals += 1
-                if ela_result.get('score', 0) >= 35:
+                if ela_result.get('score', 0) >= 25:
                     suspicious_signals += 1
-                if noise_result.get('score', 0) >= 35:
+                if noise_result.get('score', 0) >= 25:
                     suspicious_signals += 1
-                if color_result.get('score', 0) >= 25:
+                if color_result.get('score', 0) >= 20:
                     suspicious_signals += 1
-                if compression_result.get('score', 0) >= 30:
+                if compression_result.get('score', 0) >= 20:
+                    suspicious_signals += 1
+                if ai_artifacts.get('portrait_score', 0) >= 40:
+                    suspicious_signals += 2  # Strong signal
+                if ai_artifacts.get('background_uniformity', 0) >= 0.85:
                     suspicious_signals += 1
 
-                if suspicious_signals >= 3:
+                if suspicious_signals >= 2:  # Lowered from 3
+                    base_confidence = 25
+                    if ai_artifacts.get('portrait_score', 0) >= 40:
+                        base_confidence += 25
+                    if ai_artifacts.get('background_uniformity', 0) >= 0.85:
+                        base_confidence += 15
                     generic_confidence = min(
-                        95,
-                        30 + ela_result.get('score', 0) * 0.4 + noise_result.get('score', 0) * 0.2
+                        90,
+                        base_confidence + ela_result.get('score', 0) * 0.3 + noise_result.get('score', 0) * 0.2
                     )
+                    indicators = ['Missing EXIF data']
+                    if ai_artifacts.get('portrait_score', 0) >= 40:
+                        indicators.append('AI portrait characteristics detected')
+                    if ai_artifacts.get('background_uniformity', 0) >= 0.85:
+                        indicators.append('Unnaturally uniform background')
+                    if len(indicators) < 2:
+                        indicators.append('Suspicious noise/color/compression patterns')
+
                     detected_sources.append({
                         'source': 'AI-generated (unknown model)',
                         'confidence': round(generic_confidence, 2),
-                        'indicators': [
-                            'Missing EXIF data',
-                            'Suspicious noise characteristics',
-                            'Unnatural color/compression patterns'
-                        ],
+                        'indicators': indicators,
                         'match_details': {
                             'metadata': {
                                 'has_exif': metadata_result.get('has_exif', False),
@@ -470,6 +538,10 @@ class SourceDetector(BaseAnalyzer):
                             'compression': {
                                 'score': compression_result.get('score', 0),
                                 'double_compression': compression_result.get('double_compression', False)
+                            },
+                            'ai_artifacts': {
+                                'portrait_score': ai_artifacts.get('portrait_score', 0),
+                                'background_uniformity': ai_artifacts.get('background_uniformity', 0)
                             },
                             'generic_match_score': round(generic_confidence, 2)
                         }
@@ -609,7 +681,7 @@ class SourceDetector(BaseAnalyzer):
 
                 logger.info(f"Video source detection: {generator_name} = {match_score}%")
 
-                if match_score > 30:  # Increased from 5 to 30 - avoid false positives
+                if match_score > 55:  # Tightened — generic 30fps clips were matching at ~50
                     detected_sources.append({
                         'source': generator_name,
                         'confidence': round(match_score, 2),
@@ -657,11 +729,14 @@ class SourceDetector(BaseAnalyzer):
         temporal = forensic_results.get('temporal_consistency', {})
         consistency_score = temporal.get('consistency_score', 100)
 
-        if signature['temporal_consistency'] == 'very_high' and consistency_score > 90:
+        # AI generators show *unnaturally* perfect consistency. Real handheld
+        # video routinely sits at 88-94%, so the previous thresholds (>90, >80)
+        # flagged virtually every uploaded clip as AI.
+        if signature['temporal_consistency'] == 'very_high' and consistency_score > 97:
             match_score += 30
-        elif signature['temporal_consistency'] == 'high' and consistency_score > 80:
+        elif signature['temporal_consistency'] == 'high' and consistency_score > 94:
             match_score += 25
-        elif signature['temporal_consistency'] == 'moderate' and 60 < consistency_score <= 85:
+        elif signature['temporal_consistency'] == 'moderate' and 70 < consistency_score <= 88:
             match_score += 20
         elif signature['temporal_consistency'] == 'inconsistent' and consistency_score < 70:
             match_score += 25
@@ -858,6 +933,17 @@ class SourceDetector(BaseAnalyzer):
 
         return min(max_score, match_score)
 
+    # Common AI generator output dimensions
+    AI_DIMENSIONS = {256, 512, 768, 1024, 1536, 1792, 2048}
+
+    def _is_ai_resolution(self, resolution: str) -> bool:
+        """Check if resolution dimensions are standard AI generator outputs."""
+        try:
+            w, h = map(int, resolution.split('x'))
+            return w in self.AI_DIMENSIONS or h in self.AI_DIMENSIONS
+        except:
+            return False
+
     def _calculate_match_score(
         self,
         forensic_results: dict,
@@ -872,75 +958,74 @@ class SourceDetector(BaseAnalyzer):
         match_score = 0
         max_score = 100
 
-        # Check resolution (15 points)
-        if resolution in signature['typical_resolutions']:
-            match_score += 15
-        else:
-            # Partial match for similar resolutions (within 200 pixels)
-            try:
-                width, height = map(int, resolution.split('x'))
-                for sig_res in signature['typical_resolutions']:
-                    sig_width, sig_height = map(int, sig_res.split('x'))
-                    if abs(width - sig_width) <= 200 and abs(height - sig_height) <= 200:
-                        match_score += 8  # Partial match
-                        break
-            except:
-                pass
+        # RESOLUTION SANITY CHECK
+        # If resolution is NOT a known AI dimension, penalize heavily
+        # Real phone photos often have arbitrary resolutions (e.g., 468x1040)
+        is_known_ai_res = resolution in signature['typical_resolutions']
+        is_ai_dim = self._is_ai_resolution(resolution)
 
-        # Check noise pattern (25 points) - STRICTER TO AVOID FALSE POSITIVES
+        if is_known_ai_res:
+            match_score += 20  # Exact match - strong signal
+        elif is_ai_dim:
+            # Dimension is a known AI size but not exact resolution
+            match_score += 8   # Weak partial match
+        else:
+            # Resolution like 468x1040 is NOT from an AI generator
+            # Apply heavy penalty - real photos have arbitrary resolutions
+            match_score -= 15
+
+        # Check noise pattern (20 points)
         noise_result = forensic_results.get('noise', {})
         noise_uniformity = noise_result.get('noise_uniformity', 0)
         noise_range = signature['noise_pattern']['uniformity_range']
         if noise_range[0] <= noise_uniformity <= noise_range[1]:
-            match_score += 25
-        elif abs(noise_uniformity - noise_range[0]) < 0.1:  # Reduced from 0.2 - stricter
-            match_score += 8  # Reduced from 15 - less partial match
+            match_score += 20
+        elif abs(noise_uniformity - noise_range[0]) < 0.15:
+            match_score += 6
 
-        # Check color signature (25 points) - STRICTER TO AVOID FALSE POSITIVES
+        # Check color signature (20 points)
         color_result = forensic_results.get('color', {})
         avg_saturation = color_result.get('avg_saturation', 0)
         saturation_range = signature['color_signature']['saturation_range']
         if saturation_range[0] <= avg_saturation <= saturation_range[1]:
-            match_score += 25
-        elif abs(avg_saturation - saturation_range[0]) < 20:  # Reduced from 40 - stricter
-            match_score += 8  # Reduced from 15 - less partial match
-
-        # Check ELA threshold (20 points) - MORE LENIENT FOR AI
-        ela_result = forensic_results.get('ela', {})
-        mean_diff = ela_result.get('mean_difference', 0)
-        ela_score = ela_result.get('score', 0)
-
-        # Use ELA score (0-100) instead of mean_difference for better matching
-        # Signatures use score-based thresholds, not raw pixel values
-        ela_range = signature['ela_threshold']
-
-        # Map ELA score to signature ranges
-        # Score 0-20: low manipulation, 20-50: medium, 50+: high
-        normalized_ela_value = ela_score
-        if ela_range[0] <= normalized_ela_value <= ela_range[1]:
             match_score += 20
-        elif normalized_ela_value > ela_range[0] * 0.5:
-            match_score += 10  # Partial match
+        elif abs(avg_saturation - saturation_range[0]) < 30:
+            match_score += 6
 
-        # Check metadata (15 points) - STRICTER TO AVOID FALSE POSITIVES
+        # Check ELA threshold (15 points)
+        ela_result = forensic_results.get('ela', {})
+        ela_score = ela_result.get('score', 0)
+        ela_range = signature['ela_threshold']
+        if ela_range[0] <= ela_score <= ela_range[1]:
+            match_score += 15
+        elif ela_score > ela_range[0] * 0.5:
+            match_score += 5
+
+        # Check metadata (10 points) - missing EXIF alone is weak evidence
         metadata_result = forensic_results.get('metadata', {})
         has_exif = metadata_result.get('has_exif', False)
-        software_detected = metadata_result.get('software_detected', '')
 
-        # Only give points for missing EXIF if it's a strong AI indicator
-        # Don't penalize real photos that happen to have missing EXIF
         if signature['metadata_patterns'].get('missing_exif') and not has_exif:
-            # Check if this is likely AI: common AI resolutions + missing EXIF
-            ai_resolutions = ['1024x1024', '512x512', '768x768']
-            if resolution in ai_resolutions:
-                match_score += 15  # Only add points for common AI resolutions
-            # Otherwise, no points - missing EXIF alone is not enough
+            # Only strong if combined with known AI resolution
+            if is_known_ai_res:
+                match_score += 10
+            elif is_ai_dim:
+                match_score += 3
+            else:
+                match_score += 1  # Missing EXIF alone is very weak
         elif not signature['metadata_patterns'].get('missing_exif') and has_exif:
-            match_score += 15
+            match_score += 10
 
-        # NO BONUS POINTS - removed to avoid false positives on real photos
+        # SPECTRAL FEATURE BONUS
+        # If spectral analysis strongly indicates AI, boost match score
+        spectral = forensic_results.get('spectral', {})
+        spectral_score = spectral.get('score', 0)
+        if spectral_score > 40:
+            match_score += 10
+        elif spectral_score > 20:
+            match_score += 5
 
-        return min(max_score, match_score)
+        return max(0, min(max_score, match_score))
 
     def _get_matching_indicators(
         self,

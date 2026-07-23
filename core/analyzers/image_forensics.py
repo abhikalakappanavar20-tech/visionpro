@@ -83,7 +83,8 @@ class ImageForensicsAnalyzer(BaseAnalyzer):
         # Detect if image is from webcam
         is_webcam = source == 'webcam' or is_webcam_capture(image_path)
         is_video_frame = source == 'video-frame'
-        is_collage = self._detect_collage(image_path)
+        # Skip collage detection for webcam captures - live photos are never collages
+        is_collage = False if (is_webcam or is_video_frame) else self._detect_collage(image_path)
         
         logger.info(f"Image analysis: webcam={is_webcam}, video_frame={is_video_frame}, collage={is_collage}")
 
@@ -104,6 +105,18 @@ class ImageForensicsAnalyzer(BaseAnalyzer):
             # Add collage detection to preprocessing metadata
             preprocessing_metadata['is_collage'] = is_collage
 
+            # Run spectral and AI artifact analysis ONLY for non-webcam images
+            # Webcam images have completely different characteristics that break these detectors
+            if is_webcam:
+                spectral_result = {'score': 0.0, 'details': {}, 'indicators': []}
+                ai_artifact_result = {'score': 0.0, 'background_uniformity': 0.0, 'face_smoothness': 0.0,
+                                      'diffusion_fingerprint': 0.0, 'bg_grayscale': 0.0,
+                                      'dominant_color_ratio': 0.0, 'hf_ratio': 0.0, 'edge_ratio': 0.0,
+                                      'is_portrait_aspect': False, 'findings': []}
+            else:
+                spectral_result = self._analyze_spectral(image_path)
+                ai_artifact_result = self._detect_ai_artifacts(image_cv, image)
+
             # Run all analyses with webcam-aware parameters
             results = {
                 'ela': self._perform_ela(image_path, is_webcam=is_webcam),
@@ -111,6 +124,8 @@ class ImageForensicsAnalyzer(BaseAnalyzer):
                 'noise': self._analyze_noise(image_cv, is_webcam=is_webcam),
                 'compression': self._analyze_compression(image_cv, is_webcam=is_webcam),
                 'color': self._analyze_colors(image_cv, is_webcam=is_webcam),
+                'ai_artifacts': ai_artifact_result,
+                'spectral': spectral_result,
                 'preprocessing': preprocessing_metadata,
                 'validation': validation,
             }
@@ -552,11 +567,15 @@ class ImageForensicsAnalyzer(BaseAnalyzer):
                 else:
                     findings.append("Noise patterns consistent with webcam capture")
             else:
-                # Much more lenient analysis for uploaded images
-                if noise_uniformity < 0.7:  # Increased from 0.6 - much more lenient
-                    findings.append("Non-uniform noise pattern detected - possible AI generation")
-                if noise_std < 12:  # Increased from 10 - more lenient for low noise
-                    findings.append("Low noise level - AI-generated or heavily processed")
+                # Uploaded image noise analysis
+                if noise_uniformity < 0.5:
+                    findings.append("Highly non-uniform noise pattern - possible AI generation")
+                elif noise_uniformity < 0.65:
+                    findings.append("Somewhat non-uniform noise - possible processing")
+                if noise_std < 10:
+                    findings.append("Very low noise level - AI-generated or heavily processed")
+                elif noise_std < 15:
+                    findings.append("Lower than expected noise - possible digital generation")
 
             # Much less aggressive score adjustment for noise
             if not is_webcam:
@@ -779,6 +798,238 @@ class ImageForensicsAnalyzer(BaseAnalyzer):
                 'is_webcam_adjusted': is_webcam
             }
 
+    def _analyze_spectral(self, image_path: str) -> dict:
+        """
+        Run spectral (frequency domain) analysis via SpectralAnalyzer.
+
+        Args:
+            image_path: Path to image file
+
+        Returns:
+            Spectral analysis results dict
+        """
+        try:
+            from .spectral_analyzer import SpectralAnalyzer
+            analyzer = SpectralAnalyzer()
+            return analyzer.analyze(image_path)
+        except Exception as e:
+            logger.error(f"Spectral analysis failed: {str(e)}")
+            return {
+                'score': 0.0,
+                'details': {},
+                'indicators': []
+            }
+
+    def _detect_ai_artifacts(self, image_cv: np.ndarray, image_pil: Image.Image) -> dict:
+        """
+        Detect AI-generated image artifacts specific to diffusion models.
+
+        Detects:
+        - Uniform/gradient backgrounds (common in AI portraits)
+        - Overly smooth facial regions (AI skin smoothing)
+        - High facial symmetry (AI tends toward perfect symmetry)
+        - Diffusion noise fingerprints in high frequencies
+        - Repetitive texture patterns
+
+        Args:
+            image_cv: OpenCV image array
+            image_pil: PIL Image object
+
+        Returns:
+            dict with AI artifact scores and findings
+        """
+        try:
+            height, width = image_cv.shape[:2]
+            gray = cv2.cvtColor(image_cv, cv2.COLOR_BGR2GRAY)
+            hsv = cv2.cvtColor(image_cv, cv2.COLOR_BGR2HSV)
+
+            findings = []
+            scores = {}
+
+            # 1. Background uniformity analysis
+            # Sample from outer edges (thin borders) to avoid face/body in portraits
+            border_size = max(20, min(height, width) // 20)  # ~5% of smallest dimension
+            edge_regions = [
+                gray[0:border_size, :],                    # Top edge
+                gray[height-border_size:height, :],        # Bottom edge
+                gray[:, 0:border_size],                    # Left edge
+                gray[:, width-border_size:width]           # Right edge
+            ]
+
+            edge_uniformities = []
+            for region in edge_regions:
+                if region.size > 0:
+                    local_var = np.var(region.astype(np.float32))
+                    edge_uniformities.append(local_var)
+
+            avg_edge_var = np.mean(edge_uniformities) if edge_uniformities else 1000
+            # Very low variance in edges suggests uniform AI background
+            background_uniformity = 1.0 - min(1.0, avg_edge_var / 300.0)
+            scores['background_uniformity'] = float(background_uniformity)
+
+            if background_uniformity > 0.85:
+                findings.append("Extremely uniform background edges - strong AI portrait indicator")
+            elif background_uniformity > 0.65:
+                findings.append("Unusually uniform background - possible AI generation")
+
+            # Also check corner-only variance (even safer from face interference)
+            corner_size = max(15, min(height, width) // 25)
+            corner_regions = [
+                gray[0:corner_size, 0:corner_size],
+                gray[0:corner_size, width-corner_size:width],
+                gray[height-corner_size:height, 0:corner_size],
+                gray[height-corner_size:height, width-corner_size:width]
+            ]
+            corner_vars = [np.var(r.astype(np.float32)) for r in corner_regions if r.size > 0]
+            avg_corner_var = np.mean(corner_vars) if corner_vars else 1000
+            corner_uniformity = 1.0 - min(1.0, avg_corner_var / 200.0)
+
+            # Use the MAX of edge and corner uniformity (best indicator)
+            best_background_uniformity = max(background_uniformity, corner_uniformity)
+            scores['background_uniformity'] = float(best_background_uniformity)
+
+            # 2. Dominant background color coverage
+            # AI portraits often have >50% background of a single color
+            # Resample for speed
+            small = cv2.resize(gray, (256, 256), interpolation=cv2.INTER_AREA)
+            hist = cv2.calcHist([small], [0], None, [32], [0, 256])
+            dominant_ratio = float(hist.max() / hist.sum())
+            scores['dominant_color_ratio'] = dominant_ratio
+
+            if dominant_ratio > 0.35 and best_background_uniformity > 0.60:
+                findings.append(f"Single color dominates {dominant_ratio*100:.0f}% of image - AI composition pattern")
+
+            # 3. Skin smoothness / texture analysis
+            # Use face detection to isolate actual face region
+            face_cascade = cv2.CascadeClassifier(
+                cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+            )
+            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(64, 64))
+
+            smoothness_score = 0.0
+            if len(faces) > 0:
+                # Use the largest detected face
+                x, y, w, h = max(faces, key=lambda f: f[2]*f[3])
+                # Sample inner face region (avoid hair/beard edges)
+                margin_x = int(w * 0.15)
+                margin_y = int(h * 0.15)
+                face_inner = gray[y+margin_y:y+h-margin_y, x+margin_x:x+w-margin_x]
+                if face_inner.size > 0:
+                    face_laplacian = cv2.Laplacian(face_inner, cv2.CV_64F)
+                    face_texture = np.var(face_laplacian)
+                    smoothness_score = 1.0 - min(1.0, face_texture / 250.0)
+            else:
+                # Fallback: tighter central region for portraits
+                # Face is typically in upper-center for portraits
+                face_top = height // 6
+                face_bottom = 3 * height // 5
+                face_left = width // 4
+                face_right = 3 * width // 4
+                face_region = gray[face_top:face_bottom, face_left:face_right]
+                if face_region.size > 0:
+                    face_laplacian = cv2.Laplacian(face_region, cv2.CV_64F)
+                    face_texture = np.var(face_laplacian)
+                    smoothness_score = 1.0 - min(1.0, face_texture / 280.0)
+
+            scores['face_smoothness'] = float(smoothness_score)
+
+            if smoothness_score > 0.65:
+                findings.append("Unnaturally smooth facial texture - AI generation likely")
+            elif smoothness_score > 0.45:
+                findings.append("Facial texture unusually smooth - possible AI processing")
+
+            # 4. Color purity / background color analysis
+            saturation = hsv[:, :, 1].flatten()
+            avg_saturation = np.mean(saturation)
+
+            # Check edge saturation (background should be desaturated in AI portraits)
+            edge_sats = [
+                hsv[0:border_size, :, 1],
+                hsv[height-border_size:height, :, 1],
+                hsv[:, 0:border_size, 1],
+                hsv[:, width-border_size:width, 1]
+            ]
+            edge_sat_values = [np.mean(r) for r in edge_sats if r.size > 0]
+            avg_edge_saturation = np.mean(edge_sat_values) if edge_sat_values else 50
+
+            if avg_edge_saturation < 8 and best_background_uniformity > 0.60:
+                findings.append("Desaturated uniform background - classic AI portrait signature")
+                scores['bg_grayscale'] = 1.0
+            else:
+                scores['bg_grayscale'] = 0.0
+
+            # 5. Diffusion fingerprint - high frequency analysis
+            dct = cv2.dct(np.float32(gray) / 255.0)
+            hf_region = dct[height//2:height, width//2:width]
+            hf_energy = np.sum(hf_region ** 2)
+            lf_energy = np.sum(dct[0:height//4, 0:width//4] ** 2)
+            hf_ratio = hf_energy / (lf_energy + 1e-10)
+            scores['hf_ratio'] = float(hf_ratio)
+
+            if hf_ratio < 0.001:
+                findings.append("Suppressed high-frequency detail - AI generation indicator")
+                scores['diffusion_fingerprint'] = 0.75
+            elif hf_ratio > 0.01:
+                scores['diffusion_fingerprint'] = 0.25
+            else:
+                scores['diffusion_fingerprint'] = 0.5
+
+            # 6. Edge sharpness analysis
+            edges = cv2.Canny(gray, 100, 200)
+            edge_ratio = np.sum(edges > 0) / (height * width)
+            scores['edge_ratio'] = float(edge_ratio)
+
+            # 7. Portrait aspect ratio
+            aspect_ratio = width / height if height > 0 else 1
+            is_portrait_ratio = 0.5 <= aspect_ratio <= 0.8
+            is_landscape_ratio = 1.2 <= aspect_ratio <= 2.0
+            scores['is_portrait_aspect'] = bool(is_portrait_ratio)
+
+            if (is_portrait_ratio or is_landscape_ratio) and best_background_uniformity > 0.50:
+                findings.append("Portrait/landscape format with uniform background - AI headshot pattern")
+
+            # Calculate overall AI artifact score (0-100)
+            artifact_score = 0
+            artifact_score += best_background_uniformity * 30      # Up to 30 points
+            artifact_score += smoothness_score * 20                 # Up to 20 points
+            artifact_score += scores.get('diffusion_fingerprint', 0.5) * 20  # Up to 20 points
+            if scores.get('bg_grayscale', 0) > 0.5:
+                artifact_score += 15  # Bonus for grayscale background
+            if dominant_ratio > 0.35 and best_background_uniformity > 0.60:
+                artifact_score += 10  # Bonus for dominant background color
+            if is_portrait_ratio and best_background_uniformity > 0.50:
+                artifact_score += 5   # Small bonus for portrait + uniform bg
+
+            scores['portrait_score'] = min(100, artifact_score)
+
+            return {
+                'score': min(100, artifact_score),
+                'background_uniformity': float(best_background_uniformity),
+                'face_smoothness': float(smoothness_score),
+                'diffusion_fingerprint': float(scores.get('diffusion_fingerprint', 0.5)),
+                'bg_grayscale': float(scores.get('bg_grayscale', 0)),
+                'dominant_color_ratio': float(dominant_ratio),
+                'hf_ratio': float(hf_ratio),
+                'edge_ratio': float(edge_ratio),
+                'is_portrait_aspect': bool(is_portrait_ratio),
+                'findings': findings
+            }
+
+        except Exception as e:
+            logger.error(f"AI artifact detection failed: {str(e)}")
+            return {
+                'score': 0.0,
+                'background_uniformity': 0.0,
+                'face_smoothness': 0.0,
+                'diffusion_fingerprint': 0.5,
+                'bg_grayscale': 0.0,
+                'dominant_color_ratio': 0.0,
+                'hf_ratio': 0.0,
+                'edge_ratio': 0.0,
+                'is_portrait_aspect': False,
+                'findings': []
+            }
+
     def _calculate_overall_score(self, results: dict, is_webcam: bool = False, is_video_frame: bool = False, is_collage: bool = False) -> float:
         """
         Calculate overall manipulation score from all analyses.
@@ -788,62 +1039,45 @@ class ImageForensicsAnalyzer(BaseAnalyzer):
             is_webcam: True if image is from webcam (adjusts weights)
             is_video_frame: True if image is a frame from video (extra lenient)
             is_collage: True if image is detected as a collage (lenient treatment)
-
-        Weights for video frames (most lenient - frames lack context):
-        - ELA: 25% (reduced - frames have compression from video encoding)
-        - Noise: 15% (reduced - video encoding affects noise patterns)
-        - Color: 15% (reduced - colors change per frame)
-        - Compression: 15% (reduced - all video frames are compressed)
-        - Metadata: 5% (minimal - frames have no EXIF)
-
-        Weights for collages (strict - collages are edited/manipulated content):
-        - ELA: 40% (high - edited regions show ELA artifacts)
-        - Noise: 20% (varied - different source images have different noise)
-        - Color: 15% (reduced - color adjustments expected in edits)
-        - Compression: 15% (normal - some compression in edits)
-        - Metadata: 10% (low - metadata inconsistencies in edited content)
-
-        Weights for webcam images (lenient because webcam has no EXIF):
-        - ELA: 30%, Noise: 25%, Color: 20%, Compression: 15%, Metadata: 10%
-
-        Weights for uploaded images (balanced):
-        - ELA: 35%, Noise: 20%, Compression: 20%, Metadata: 15%, Color: 10%
         """
         if is_video_frame:
-            # Most lenient - video frames naturally have compression and lack EXIF
             weights = {
-                'metadata': 0.05,  # Minimal - frames have no EXIF by design
-                'noise': 0.15,     # Reduced - video encoding affects noise
-                'ela': 0.25,       # Reduced - frames are pre-compressed
-                'compression': 0.15,  # Reduced - all frames compressed
-                'color': 0.15      # Reduced - colors vary per frame
-            }  # Total: 0.75 (intentionally low to allow easy passage)
+                'metadata': 0.05,
+                'noise': 0.15,
+                'ela': 0.25,
+                'compression': 0.15,
+                'color': 0.15,
+                'ai_artifacts': 0.10
+            }
         elif is_collage:
-            # Strict for collages - they are edited/manipulated content
-            # Collages should be classified as FAKE since they're not authentic
             weights = {
-                'metadata': 0.10,  # Low - metadata may be inconsistent
-                'noise': 0.20,     # Normal - different sources have different noise
-                'ela': 0.40,       # High - detected edits show ELA artifacts
-                'compression': 0.15,  # Normal - some compression in edits
-                'color': 0.15      # Normal - color shifts in edited regions
-            }  # Total: 1.0 (strict - penalizes detected collages)
+                'metadata': 0.08,
+                'noise': 0.18,
+                'ela': 0.35,
+                'compression': 0.15,
+                'color': 0.12,
+                'ai_artifacts': 0.12
+            }
         elif is_webcam:
             weights = {
-                'metadata': 0.05,  # Very low - missing EXIF is NORMAL for webcam
-                'noise': 0.25,     # Still important
-                'ela': 0.30,       # Increased - main detector for webcam
+                'metadata': 0.05,
+                'noise': 0.20,
+                'ela': 0.25,
                 'compression': 0.15,
-                'color': 0.25      # Increased - color analysis helps
+                'color': 0.15,
+                'ai_artifacts': 0.10,
+                'spectral': 0.10
             }
         else:
-            # Balanced weights for uploaded images - ELA and compression are strongest indicators
+            # Balanced weights for uploaded images
             weights = {
-                'metadata': 0.15,  # Increased slightly from 0.10 - still low but not zero
-                'noise': 0.20,     # Increased from 0.15 - noise is a good indicator
-                'ela': 0.35,       # Increased from 0.30 - ELA is the best indicator
-                'compression': 0.20,  # Decreased from 0.25 - compression is good but not as strong as ELA
-                'color': 0.10      # Decreased from 0.20 - color is less reliable
+                'metadata': 0.10,
+                'noise': 0.12,
+                'ela': 0.22,
+                'compression': 0.12,
+                'color': 0.06,
+                'ai_artifacts': 0.15,
+                'spectral': 0.23  # 23% weight - spectral is strong discriminator
             }
 
         weighted_score = sum(
@@ -852,62 +1086,58 @@ class ImageForensicsAnalyzer(BaseAnalyzer):
         )
 
         # Boost score if multiple indicators found
-        # Balanced boosting to avoid over-penalizing real photos
         total_indicators = sum(len(results[key].get('findings', [])) for key in results)
+        ai_artifact_score = results.get('ai_artifacts', {}).get('score', 0)
 
         if is_video_frame:
-            # Minimal boosting for video frames - they're less reliable
             if total_indicators >= 8:
                 weighted_score = min(100, weighted_score * 1.05)
         elif is_collage:
-            # Aggressive boosting for detected collages - they're edited content
-            # Multiple indicators in collages confirm the editing
             if total_indicators >= 4:
-                weighted_score = min(100, weighted_score * 1.25)  # Strong boost for collages
+                weighted_score = min(100, weighted_score * 1.25)
             elif total_indicators >= 2:
-                weighted_score = min(100, weighted_score * 1.15)  # Moderate boost
+                weighted_score = min(100, weighted_score * 1.15)
         elif is_webcam:
-            # More conservative boosting for webcam
             if total_indicators >= 5:
                 weighted_score = min(100, weighted_score * 1.15)
             elif total_indicators >= 4:
                 weighted_score = min(100, weighted_score * 1.08)
         else:
-            # Much more lenient boosting for uploads - real photos can have multiple minor indicators
-            if total_indicators >= 5:  # Increased from 4 - need many indicators to boost
-                weighted_score = min(100, weighted_score * 1.10)  # Reduced from 1.15
-            elif total_indicators >= 3:  # Increased from 2 - more indicators needed
-                weighted_score = min(100, weighted_score * 1.05)  # Reduced from 1.08
+            # Uploaded images: boost more aggressively if AI artifacts detected
+            if ai_artifact_score >= 50:
+                # Strong AI artifact detection - boost significantly
+                weighted_score = min(100, weighted_score * 1.20)
+            elif ai_artifact_score >= 30:
+                weighted_score = min(100, weighted_score * 1.12)
+            elif total_indicators >= 5:
+                weighted_score = min(100, weighted_score * 1.10)
+            elif total_indicators >= 3:
+                weighted_score = min(100, weighted_score * 1.05)
 
-        # Apply soft cap to reduce false positives on real photos with normal compression
+        # Apply soft cap - BUT skip it if strong AI artifacts detected
+        # Strong AI artifact detection overrides the soft cap
+        strong_ai_detected = ai_artifact_score >= 45
 
-        # VIDEO FRAME: Most lenient soft cap (video frames are inherently compressed)
         if is_video_frame and 15 <= weighted_score <= 45:
-            weighted_score = weighted_score * 0.40  # Reduce by 60% for video frames
+            weighted_score = weighted_score * 0.25
 
-        # COLLAGE: Aggressive soft cap (collages are edited/manipulated)
         elif is_collage and 35 <= weighted_score <= 65:
-            # Collages should be boosted into FAKE range (>50) since they're edited
-            # Push scores up to ensure they're classified as manipulated content
-            weighted_score = weighted_score * 1.40  # Boost by 40% for collages
+            weighted_score = weighted_score * 1.40
 
-        # WEBCAM: Very lenient soft cap (webcam captures should almost always be REAL)
         elif is_webcam and 20 <= weighted_score <= 50:
-            # Webcam captures often score higher due to:
-            # - Higher compression baseline
-            # - Missing EXIF (normal for canvas/webcam)
-            # - Different noise characteristics
-            weighted_score = weighted_score * 0.60  # Reduce by 40% for webcam
+            weighted_score = weighted_score * 0.50
 
-        # UPLOADED: Apply to uploaded images in the middle range (35-50%)
-        # Real photos often score here due to natural compression and processing
-        # But should still be considered real unless very high
-        elif not is_video_frame and not is_webcam and 35 <= weighted_score <= 50:
-            weighted_score = weighted_score * 0.75  # Reduce by 25% for this range
+        elif not is_video_frame and not is_webcam and not strong_ai_detected and 35 <= weighted_score <= 50:
+            # Only apply soft cap if AI artifacts are NOT strong
+            weighted_score = weighted_score * 0.80  # Reduced penalty from 0.75
 
-        # COLLAGE PENALTY: If collage detected, ensure it scores high enough to be FAKE
-        # Collages are edited content and should be classified as manipulated/fake
-        # Minimum score of 55 ensures collages are always classified as FAKE (> 50)
+        # AI ARTIFACT OVERRIDE: If strong AI portrait detected, ensure minimum score
+        if not is_webcam and not is_video_frame and ai_artifact_score >= 55:
+            # Force minimum score to ensure AI content is flagged as suspicious/fake
+            if weighted_score < 45:
+                weighted_score = 45
+
+        # COLLAGE PENALTY
         if is_collage and weighted_score < 55:
             weighted_score = 55
 

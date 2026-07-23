@@ -1,0 +1,56 @@
+{% extends "core/admin_panel/base_admin.html" %}
+
+{% block admin_content %}
+<h1>User Management</h1>
+<p class="subtitle">View, search, and manage all registered users.</p>
+
+<form method="get" class="filter-bar">
+    <input type="text" name="q" placeholder="Search username or email" value="{{ q }}">
+    <button type="submit" class="btn-admin primary"><i class="fas fa-search"></i> Search</button>
+    {% if q %}<a href="{% url 'admin_panel_users' %}" class="btn-admin">Clear</a>{% endif %}
+</form>
+
+<div class="admin-card">
+    {% if page_obj.object_list %}
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>ID</th><th>Username</th><th>Email</th><th>Joined</th>
+                <th>Last Login</th><th>Role</th><th>Status</th><th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in page_obj.object_list %}
+            <tr>
+                <td>#{{ u.id }}</td>
+                <td><a href="{% url 'admin_panel_user_detail' u.id %}" style="color:#4f8cff;text-decoration:none;">{{ u.username }}</a></td>
+                <td>{{ u.email|default:"—" }}</td>
+                <td>{{ u.date_joined|date:"M d, Y" }}</td>
+                <td>{{ u.last_login|date:"M d, Y H:i"|default:"Never" }}</td>
+                <td>
+                    {% if u.is_superuser %}<span class="pill staff">Superuser</span>
+                    {% elif u.is_staff %}<span class="pill staff">Staff</span>
+                    {% else %}<span class="pill active">User</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if u.is_active %}<span class="pill active">Active</span>
+                    {% else %}<span class="pill inactive">Disabled</span>
+                    {% endif %}
+                </td>
+                <td><a href="{% url 'admin_panel_user_detail' u.id %}" class="btn-admin">Manage</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="pagination-bar">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}">‹ Prev</a>{% endif %}
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} users)
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}">Next ›</a>{% endif %}
+    </div>
+    {% else %}
+    <div class="empty">No users match this filter.</div>
+    {% endif %}
+</div>
+{% endblock %}

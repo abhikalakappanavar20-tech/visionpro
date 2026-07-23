@@ -1,35 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scan History - VeriVision</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/navbar.css">
+    <link rel="stylesheet" href="/static/css/bg-animation.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body>
     <!-- Navigation -->
-    <nav class="navbar">
+    <nav class="navbar" id="navbar">
         <div class="container">
-            <div class="nav-brand">
-                <i class="fas fa-shield-alt"></i>
+            <a href="{% url 'home' %}" class="nav-brand">
+                <span class="brand-icon"><i class="fas fa-shield-alt"></i></span>
                 <span>VeriVision</span>
-            </div>
-            <ul class="nav-menu">
-                <li><a href="{% url 'home' %}"><i class="fas fa-home"></i> Home</a></li>
-                <li><a href="{% url 'scan' %}"><i class="fas fa-search"></i> Scan</a></li>
-                <li><a href="{% url 'dashboard' %}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
-                <li><a href="{% url 'history' %}" class="active"><i class="fas fa-history"></i> History</a></li>
+            </a>
+            <ul class="nav-menu" id="navMenu">
+                <li><a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="{% url 'scan' %}" class="{% if request.resolver_match.url_name == 'scan' or request.resolver_match.url_name == 'scan_url' %}active{% endif %}"><i class="fas fa-search"></i> Scan</a></li>
+                <li><a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+                <li><a href="{% url 'history' %}" class="{% if request.resolver_match.url_name == 'history' %}active{% endif %}"><i class="fas fa-history"></i> History</a></li>
+                {% if user.is_authenticated and user.is_staff %}
+                <li><a href="{% url 'admin_panel_dashboard' %}" class="{% if 'admin_panel' in request.resolver_match.url_name|default:'' %}active{% endif %}"><i class="fas fa-user-shield"></i> Admin</a></li>
+                {% endif %}
+                {% if user.is_authenticated %}
+                <li class="auth-dropdown">
+                    <a href="{% url 'profile' %}">
+                        <span class="user-avatar">{{ user.username|first }}</span>
+                        <span>{{ user.username }}</span>
+                        <i class="fas fa-chevron-down" style="font-size:0.7rem; margin-left:2px;"></i>
+                    </a>
+                    <div class="dropdown-menu">
+                        <a href="{% url 'profile' %}"><i class="fas fa-user"></i> Profile</a>
+                        {% if user.is_staff %}<a href="{% url 'admin_panel_dashboard' %}"><i class="fas fa-user-shield"></i> Admin Panel</a>{% endif %}
+                        <div class="dropdown-divider"></div>
+                        <a href="{% url 'logout' %}" class="logout-link"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    </div>
+                </li>
+                {% else %}
+                <div class="nav-divider"></div>
+                <div class="nav-auth">
+                    <a href="{% url 'login' %}" class="btn-login"><i class="fas fa-sign-in-alt"></i> Login</a>
+                    <a href="{% url 'register' %}" class="btn-register"><i class="fas fa-user-plus"></i> Register</a>
+                </div>
+                {% endif %}
             </ul>
-{% if user.is_authenticated %}                <li><a href="{% url 'profile' %}"><i class="fas fa-user-circle"></i> {{ user.username }}</a></li>                <li><a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>                {% else %}                <li><a href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Login</a></li>                <li><a href="{% url 'register' %}"><i class="fas fa-user-plus"></i> Register</a></li>                {% endif %}
-            <button class="nav-toggle" id="navToggle">
-                <i class="fas fa-bars"></i>
-            </button>
+            <button class="nav-toggle" id="navToggle"><span></span></button>
         </div>
+        <div class="nav-overlay" id="navOverlay"></div>
     </nav>
+    <div style="height: 70px;"></div>
 
     <!-- Main Content -->
     <main class="main-content">
+        <div class="gradient-orbs"><div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div><div class="orb orb-4"></div><div class="orb orb-5"></div><div class="orb orb-6"></div></div>
+        <div class="shimmer-sweep"></div>
+        <div class="dot-pattern"></div>
+        <div class="floating-shapes"><div class="shape shape-1"></div><div class="shape shape-2"></div><div class="shape shape-3"></div><div class="shape shape-4"></div><div class="shape shape-5"></div><div class="shape shape-6"></div><div class="shape shape-7"></div></div>
+        <div class="particles"><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div></div>
         <div class="container">
             <div class="page-header">
                 <h1><i class="fas fa-history"></i> Scan History</h1>
@@ -44,19 +76,26 @@
                         <select name="result" id="resultFilter">
                             <option value="">All Results</option>
                             <option value="real" {% if result_filter == 'real' %}selected{% endif %}>Real</option>
+
                             <option value="fake" {% if result_filter == 'fake' %}selected{% endif %}>Fake</option>
-                            <option value="manipulated" {% if result_filter == 'manipulated' %}selected{% endif %}>Manipulated</option>
-                            <option value="suspicious" {% if result_filter == 'suspicious' %}selected{% endif %}>Suspicious</option>
+
+                            <option value="manipulated" {% if result_filter == 'manipulated' %}selected{% endif %}>
+                                Manipulated</option>
+
+                            <option value="suspicious" {% if result_filter == 'suspicious' %}selected{% endif %}>
+                                Suspicious</option>
                         </select>
                     </div>
 
                     <div class="filter-group">
                         <label for="typeFilter">Type:</label>
                         <select name="type" id="typeFilter">
-                            <option value="">All Types</option>
                             <option value="image" {% if type_filter == 'image' %}selected{% endif %}>Image</option>
+
                             <option value="video" {% if type_filter == 'video' %}selected{% endif %}>Video</option>
+
                             <option value="audio" {% if type_filter == 'audio' %}selected{% endif %}>Audio</option>
+
                             <option value="url" {% if type_filter == 'url' %}selected{% endif %}>URL</option>
                         </select>
                     </div>
@@ -92,35 +131,59 @@
                     <tbody>
                         {% for scan in page_obj %}
                         <tr>
+
                             <td>#{{ scan.id }}</td>
+
                             <td>
-                                <i class="fas fa-{% if scan.file_type == 'image' %}file-image{% elif scan.file_type == 'video' %}file-video{% elif scan.file_type == 'audio' %}file-audio{% else %}link{% endif %}"></i>
+                                <i
+                                    class="fas fa-{% if scan.file_type == 'image' %}file-image{% elif scan.file_type == 'video' %}file-video{% elif scan.file_type == 'audio' %}file-audio{% else %}link{% endif %}"></i>
                                 {{ scan.file_type|title }}
                             </td>
+
                             <td>
                                 {% if scan.original_filename %}
-                                    {{ scan.original_filename|truncatechars:30 }}
+                                {{ scan.original_filename|truncatechars:30 }}
                                 {% elif scan.url %}
-                                    {{ scan.url|truncatechars:30 }}
+                                {{ scan.url|truncatechars:30 }}
                                 {% else %}
-                                    N/A
+                                N/A
                                 {% endif %}
                             </td>
+
                             <td>
-                                <span class="badge badge-{{ scan.scan_result }}">{{ scan.scan_result|title }}</span>
+                                <span class="badge badge-{{ scan.scan_result }}">
+                                    {{ scan.scan_result|title }}
+                                </span>
                             </td>
+
                             <td>{{ scan.confidence_score }}%</td>
+
                             <td>
-                                <span class="{% if scan.trust_score >= 80 %}text-success{% elif scan.trust_score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                <span
+                                    class="{% if scan.trust_score >= 80 %}text-success{% elif scan.trust_score >= 50 %}text-warning{% else %}text-danger{% endif %}">
                                     {{ scan.trust_score }}/100
                                 </span>
                             </td>
+
                             <td>{{ scan.created_at|timesince }} ago</td>
+
                             <td>
                                 <a href="{% url 'result' scan.id %}" class="btn-view">
                                     <i class="fas fa-eye"></i> View
                                 </a>
+
+                                <form method="POST" action="{% url 'delete_scan' scan.id %}" style="display:inline;">
+                                    {% csrf_token %}
+
+                                    <button type="submit"
+                                        onclick="return confirm('Are you sure you want to delete this scan?')"
+                                        class="btn-view"
+                                        style="background:#000000; border:none; margin-left:5px; cursor:pointer;">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </form>
                             </td>
+
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -130,12 +193,14 @@
                 {% if page_obj.has_other_pages %}
                 <div class="pagination">
                     {% if page_obj.has_previous %}
-                        <a href="?page=1{% if result_filter %}&result={{ result_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="pagination-btn">
-                            <i class="fas fa-angle-double-left"></i>
-                        </a>
-                        <a href="?page={{ page_obj.previous_page_number }}{% if result_filter %}&result={{ result_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="pagination-btn">
-                            <i class="fas fa-angle-left"></i>
-                        </a>
+                    <a href="?page=1{% if result_filter %}&result={{ result_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}"
+                        class="pagination-btn">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if result_filter %}&result={{ result_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}"
+                        class="pagination-btn">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
                     {% endif %}
 
                     <span class="pagination-info">
@@ -143,12 +208,14 @@
                     </span>
 
                     {% if page_obj.has_next %}
-                        <a href="?page={{ page_obj.next_page_number }}{% if result_filter %}&result={{ result_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="pagination-btn">
-                            <i class="fas fa-angle-right"></i>
-                        </a>
-                        <a href="?page={{ page_obj.paginator.num_pages }}{% if result_filter %}&result={{ result_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="pagination-btn">
-                            <i class="fas fa-angle-double-right"></i>
-                        </a>
+                    <a href="?page={{ page_obj.next_page_number }}{% if result_filter %}&result={{ result_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}"
+                        class="pagination-btn">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}{% if result_filter %}&result={{ result_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}"
+                        class="pagination-btn">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -177,5 +244,14 @@
     </footer>
 
     <script src="/static/js/main.js"></script>
+    <script>
+    (function(){
+        var navbar=document.getElementById('navbar'),navToggle=document.getElementById('navToggle'),navMenu=document.getElementById('navMenu'),navOverlay=document.getElementById('navOverlay');
+        if(navbar){window.addEventListener('scroll',function(){navbar.classList.toggle('scrolled',window.scrollY>30);});}
+        if(navToggle){navToggle.addEventListener('click',function(){navMenu.classList.toggle('active');navToggle.classList.toggle('active');if(navOverlay)navOverlay.classList.toggle('active');document.body.style.overflow=navMenu.classList.contains('active')?'hidden':'';});}
+        if(navOverlay){navOverlay.addEventListener('click',function(){navMenu.classList.remove('active');navToggle.classList.remove('active');navOverlay.classList.remove('active');document.body.style.overflow='';});}
+    })();
+    </script>
 </body>
+
 </html>

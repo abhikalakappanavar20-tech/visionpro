@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin Panel - VeriVision{% endblock %}</title>
+
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/bg-animation-dark.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        html, body { margin: 0; padding: 0; }
+        body {
+            background: #0a0e27;
+            color: #e4e8f5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .admin-shell {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .admin-sidebar {
+            width: 240px;
+            background: #111638;
+            border-right: 1px solid #1f2649;
+            padding: 24px 0;
+            position: sticky;
+            top: 0;
+            align-self: flex-start;
+            height: 100vh;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .admin-sidebar h2 {
+            padding: 0 24px 16px;
+            margin: 0 0 16px;
+            font-size: 18px;
+            color: #fff;
+            border-bottom: 1px solid #1f2649;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-sidebar h2 i { color: #4f8cff; }
+
+        .admin-sidebar .who {
+            padding: 0 24px 16px;
+            color: #8b93b8;
+            font-size: 13px;
+        }
+
+        .admin-sidebar .who strong {
+            color: #fff;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .admin-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .admin-nav li a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            color: #b6bedb;
+            text-decoration: none;
+            border-left: 3px solid transparent;
+            transition: background .15s, color .15s, border-color .15s;
+        }
+
+        .admin-nav li a:hover { background: #161c44; color: #fff; }
+
+        .admin-nav li a.active {
+            background: #1a214f;
+            color: #fff;
+            border-left-color: #4f8cff;
+        }
+
+        .admin-nav li a i { width: 18px; text-align: center; }
+
+        .admin-nav .divider {
+            height: 1px;
+            background: #1f2649;
+            margin: 16px 24px;
+        }
+
+        .admin-main {
+            flex: 1;
+            padding: 28px 36px;
+            overflow-x: auto;
+        }
+
+        .admin-main h1 {
+            margin: 0 0 6px;
+            color: #fff;
+            font-size: 26px;
+        }
+
+        .admin-main .subtitle {
+            color: #8b93b8;
+            margin-bottom: 28px;
+        }
+
+        .admin-card {
+            background: #121738;
+            border: 1px solid #1f2649;
+            border-radius: 10px;
+            padding: 20px 22px;
+            margin-bottom: 20px;
+        }
+
+        .admin-card h3 {
+            margin: 0 0 16px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi {
+            background: #121738;
+            border: 1px solid #1f2649;
+            border-radius: 10px;
+            padding: 18px;
+        }
+
+        .kpi .label {
+            color: #8b93b8;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-bottom: 8px;
+        }
+
+        .kpi .value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .kpi .value.green { color: #3ad29f; }
+        .kpi .value.red   { color: #ff6b6b; }
+        .kpi .value.amber { color: #ffb347; }
+        .kpi .value.blue  { color: #4f8cff; }
+
+        table.admin-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table.admin-table th,
+        table.admin-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #1f2649;
+            font-size: 14px;
+        }
+
+        table.admin-table th {
+            color: #8b93b8;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: .5px;
+            font-weight: 600;
+        }
+
+        table.admin-table tr:hover td { background: #161c44; }
+
+        .pill {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .pill.real        { background: rgba(58,210,159,.15); color: #3ad29f; }
+        .pill.fake        { background: rgba(255,107,107,.15); color: #ff6b6b; }
+        .pill.suspicious  { background: rgba(255,179,71,.15);  color: #ffb347; }
+        .pill.pending     { background: rgba(79,140,255,.15);  color: #4f8cff; }
+        .pill.staff       { background: rgba(167,119,255,.18); color: #b394ff; }
+        .pill.inactive    { background: rgba(140,140,140,.18); color: #aaa; }
+        .pill.active      { background: rgba(58,210,159,.15);  color: #3ad29f; }
+
+        .btn-admin {
+            background: #1a214f;
+            color: #e4e8f5;
+            border: 1px solid #2a3370;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-admin:hover  { background: #233070; color: #fff; }
+        .btn-admin.primary { background: #4f8cff; border-color: #4f8cff; color: #fff; }
+        .btn-admin.primary:hover { background: #3a76e0; }
+        .btn-admin.danger  { background: #c0392b; border-color: #c0392b; color: #fff; }
+        .btn-admin.danger:hover { background: #a82d20; }
+
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-bar input,
+        .filter-bar select {
+            background: #0e1330;
+            border: 1px solid #1f2649;
+            color: #e4e8f5;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .pagination-bar {
+            margin-top: 18px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            color: #8b93b8;
+            font-size: 13px;
+        }
+
+        .pagination-bar a {
+            color: #4f8cff;
+            text-decoration: none;
+            padding: 4px 10px;
+            border: 1px solid #1f2649;
+            border-radius: 6px;
+        }
+
+        .pagination-bar a:hover { background: #1a214f; }
+
+        .empty {
+            text-align: center;
+            padding: 30px;
+            color: #8b93b8;
+        }
+
+        .admin-messages {
+            margin-bottom: 18px;
+        }
+
+        .admin-messages .alert {
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .admin-messages .alert-success { background: rgba(58,210,159,.12); color: #3ad29f; border: 1px solid rgba(58,210,159,.3); }
+        .admin-messages .alert-error   { background: rgba(255,107,107,.12); color: #ff6b6b; border: 1px solid rgba(255,107,107,.3); }
+        .admin-messages .alert-info    { background: rgba(79,140,255,.12); color: #4f8cff; border: 1px solid rgba(79,140,255,.3); }
+        .admin-messages .alert-warning { background: rgba(255,179,71,.12); color: #ffb347; border: 1px solid rgba(255,179,71,.3); }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+<div class="admin-shell">
+    <aside class="admin-sidebar">
+        <h2><i class="fas fa-user-shield"></i> Admin Panel</h2>
+        <div class="who">
+            <strong>{{ user.username }}</strong>
+            {% if user.is_superuser %}Superuser{% else %}Staff{% endif %}
+        </div>
+        <ul class="admin-nav">
+            <li>
+                <a href="{% url 'admin_panel_dashboard' %}" class="{% if active_section == 'dashboard' %}active{% endif %}">
+                    <i class="fas fa-gauge-high"></i> Dashboard
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'admin_panel_users' %}" class="{% if active_section == 'users' %}active{% endif %}">
+                    <i class="fas fa-users"></i> Users
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'admin_panel_scans' %}" class="{% if active_section == 'scans' %}active{% endif %}">
+                    <i class="fas fa-magnifying-glass-chart"></i> All Scans
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'admin_panel_reports' %}" class="{% if active_section == 'reports' %}active{% endif %}">
+                    <i class="fas fa-flag"></i> Reports
+                </a>
+            </li>
+            <div class="divider"></div>
+            <li>
+                <a href="{% url 'home' %}">
+                    <i class="fas fa-arrow-left"></i> Back to Site
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'logout' %}">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <main class="admin-main">
+        <div class="gradient-orbs"><div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div><div class="orb orb-4"></div><div class="orb orb-5"></div></div>
+        <div class="shimmer-sweep"></div>
+        <div class="dot-pattern"></div>
+        <div class="floating-shapes"><div class="shape shape-1"></div><div class="shape shape-2"></div><div class="shape shape-3"></div><div class="shape shape-4"></div><div class="shape shape-5"></div><div class="shape shape-6"></div><div class="shape shape-7"></div></div>
+        <div class="particles"><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div></div>
+        {% if messages %}
+        <div class="admin-messages">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {% if message.tags == 'success' %}<i class="fas fa-check-circle"></i>
+                {% elif message.tags == 'error' %}<i class="fas fa-times-circle"></i>
+                {% else %}<i class="fas fa-info-circle"></i>{% endif %}
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block admin_content %}{% endblock %}
+    </main>
+</div>
+</body>
+</html>

@@ -20,6 +20,12 @@ try:
 except ImportError:
     LIBROSA_AVAILABLE = False
 
+try:
+    import imageio_ffmpeg
+    FFMPEG_AVAILABLE = True
+except ImportError:
+    FFMPEG_AVAILABLE = False
+
 from .base_analyzer import BaseAnalyzer, AnalyzerError
 
 logger = logging.getLogger(__name__)
@@ -53,7 +59,104 @@ class AudioForensicsAnalyzer(BaseAnalyzer):
         """Initialize audio analyzer."""
         super().__init__()
         self.name = "AudioForensicsAnalyzer"
-        self.version = "1.0.0"
+        self.version = "1.1.0"
+        self._converted_path = None  # Track temp converted file
+
+    def _convert_with_ffmpeg(self, audio_path: str) -> str:
+        """
+        Convert audio file to WAV using ffmpeg for librosa compatibility.
+
+        Args:
+            audio_path: Original audio file path
+
+        Returns:
+            Path to converted WAV file (caller must clean up)
+
+        Raises:
+            AnalyzerError: If conversion fails
+        """
+        if not FFMPEG_AVAILABLE:
+            raise AnalyzerError("FFmpeg not available. Cannot convert audio format.")
+
+        import tempfile
+        import subprocess
+
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        temp_wav = tempfile.mktemp(suffix='.wav')
+
+        try:
+            # Convert to 16-bit PCM WAV at 22050Hz (librosa-friendly)
+            cmd = [
+                ffmpeg_exe,
+                '-y',  # Overwrite output
+                '-i', audio_path,
+                '-ar', '22050',
+                '-ac', '1',
+                '-acodec', 'pcm_s16le',
+                temp_wav
+            ]
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=60
+            )
+            if result.returncode != 0:
+                stderr = result.stderr.decode('utf-8', errors='ignore')[:200]
+                raise AnalyzerError(f"FFmpeg conversion failed: {stderr}")
+
+            if not os.path.exists(temp_wav) or os.path.getsize(temp_wav) == 0:
+                raise AnalyzerError("FFmpeg produced empty output file")
+
+            logger.info(f"Converted audio to WAV: {temp_wav}")
+            return temp_wav
+
+        except Exception as e:
+            if os.path.exists(temp_wav):
+                os.remove(temp_wav)
+            raise AnalyzerError(f"Audio conversion failed: {str(e)}")
+
+    def _load_audio(self, audio_path: str):
+        """
+        Load audio with automatic format conversion fallback.
+
+        Args:
+            audio_path: Path to audio file
+
+        Returns:
+            tuple: (audio_samples, sample_rate, is_converted)
+        """
+        # Try direct librosa load first
+        try:
+            y, sr = librosa.load(audio_path, sr=None)
+            return y, sr, False
+        except Exception as direct_error:
+            logger.warning(f"Direct librosa load failed: {direct_error}")
+
+        # Fallback: convert with ffmpeg then load
+        if FFMPEG_AVAILABLE:
+            logger.info("Attempting ffmpeg conversion for unsupported format")
+            converted_path = self._convert_with_ffmpeg(audio_path)
+            try:
+                y, sr = librosa.load(converted_path, sr=None)
+                self._converted_path = converted_path
+                return y, sr, True
+            except Exception as conv_error:
+                os.remove(converted_path)
+                self._converted_path = None
+                raise AnalyzerError(f"Failed to load even after conversion: {conv_error}")
+        else:
+            raise AnalyzerError(f"Cannot load audio format and ffmpeg not available: {direct_error}")
+
+    def _cleanup_converted(self):
+        """Remove temporary converted file if exists."""
+        if self._converted_path and os.path.exists(self._converted_path):
+            try:
+                os.remove(self._converted_path)
+                logger.info(f"Cleaned up converted file: {self._converted_path}")
+            except Exception as e:
+                logger.warning(f"Failed to cleanup converted file: {e}")
+            self._converted_path = None
 
     def _validate_audio(self, audio_path: str) -> None:
         """
@@ -71,13 +174,38 @@ class AudioForensicsAnalyzer(BaseAnalyzer):
         if not os.path.exists(audio_path):
             raise AnalyzerError(f"Audio file not found: {audio_path}")
 
-        # Try to load audio to validate format
+        # Check file size (audio files should be reasonable size)
+        file_size = os.path.getsize(audio_path)
+        if file_size == 0:
+            raise AnalyzerError("Audio file is empty")
+        if file_size > 500 * 1024 * 1024:  # 500MB limit
+            logger.warning(f"Audio file very large: {file_size / 1024 / 1024:.1f}MB - may take longer to analyze")
+
+        # Try to load small portion of audio to validate format
         try:
-            y, sr = librosa.load(audio_path, sr=None, duration=1.0)
+            # Load first 30 seconds for validation
+            y, sr = librosa.load(audio_path, sr=None, duration=30.0)
             if len(y) == 0:
-                raise AnalyzerError("Empty audio file")
+                raise AnalyzerError("Could not extract audio samples")
+            logger.info(f"Audio validation passed: {len(y)} samples at {sr}Hz")
         except Exception as e:
-            raise AnalyzerError(f"Cannot load audio file: {str(e)}")
+            # If direct load fails, try ffmpeg conversion for validation
+            if FFMPEG_AVAILABLE:
+                try:
+                    converted = self._convert_with_ffmpeg(audio_path)
+                    y, sr = librosa.load(converted, sr=None, duration=30.0)
+                    os.remove(converted)
+                    if len(y) == 0:
+                        raise AnalyzerError("Could not extract audio samples after conversion")
+                    logger.info(f"Audio validation passed after conversion: {len(y)} samples at {sr}Hz")
+                except AnalyzerError:
+                    raise
+                except Exception as conv_err:
+                    logger.error(f"Audio validation error (even after conversion): {str(conv_err)}")
+                    raise AnalyzerError(f"Cannot load audio file: {str(conv_err)}")
+            else:
+                logger.error(f"Audio validation error: {str(e)}")
+                raise AnalyzerError(f"Cannot load audio file: {str(e)}")
 
     def analyze(self, audio_path: str) -> Dict[str, Any]:
         """
@@ -96,60 +224,91 @@ class AudioForensicsAnalyzer(BaseAnalyzer):
             self._validate_audio(audio_path)
             logger.info(f"Starting audio forensics analysis: {audio_path}")
 
-            # Load audio
-            y, sr = librosa.load(audio_path, sr=None)
-            duration = len(y) / sr
+            # Load full audio file for analysis (with format conversion fallback)
+            try:
+                y, sr, was_converted = self._load_audio(audio_path)
+                duration = len(y) / sr
+                if was_converted:
+                    logger.info(f"Audio loaded after conversion: {duration:.2f}s at {sr}Hz")
+                else:
+                    logger.info(f"Audio loaded: {duration:.2f}s at {sr}Hz")
+            except Exception as load_error:
+                logger.error(f"Cannot load audio file: {str(load_error)}")
+                self._cleanup_converted()
+                raise AnalyzerError(f"Failed to load audio file: {str(load_error)}")
 
-            logger.info(f"Audio loaded: {duration:.2f}s at {sr}Hz")
+            if len(y) == 0 or duration == 0:
+                self._cleanup_converted()
+                raise AnalyzerError("Audio file is empty or has no valid samples")
 
-            # Step 1: Spectral analysis
-            spectral_analysis = self._analyze_spectral_features(y, sr)
+            try:
+                # Step 1: Spectral analysis
+                spectral_analysis = self._analyze_spectral_features(y, sr)
 
-            # Step 2: Voice characteristics
-            voice_analysis = self._analyze_voice_characteristics(y, sr)
+                # Step 2: Voice characteristics
+                voice_analysis = self._analyze_voice_characteristics(y, sr)
 
-            # Step 3: Background noise analysis
-            noise_analysis = self._analyze_background_noise(y, sr)
+                # Step 3: Background noise analysis
+                noise_analysis = self._analyze_background_noise(y, sr)
 
-            # Step 4: Silence pattern analysis
-            silence_analysis = self._analyze_silence_patterns(y, sr)
+                # Step 4: Silence pattern analysis
+                silence_analysis = self._analyze_silence_patterns(y, sr)
 
-            # Step 5: Calculate overall score
-            overall_score = self._calculate_overall_score(
-                spectral_analysis,
-                voice_analysis,
-                noise_analysis,
-                silence_analysis
-            )
+                # Step 5: Calculate overall score
+                overall_score = self._calculate_overall_score(
+                    spectral_analysis,
+                    voice_analysis,
+                    noise_analysis,
+                    silence_analysis
+                )
 
-            # Step 6: Compile indicators
-            indicators = self._compile_indicators(
-                spectral_analysis,
-                voice_analysis,
-                noise_analysis,
-                silence_analysis,
-                overall_score
-            )
+                # Step 6: Compile indicators
+                indicators = self._compile_indicators(
+                    spectral_analysis,
+                    voice_analysis,
+                    noise_analysis,
+                    silence_analysis,
+                    overall_score
+                )
 
-            logger.info(f"Audio analysis complete: {overall_score:.2f}%")
+                logger.info(f"Audio analysis complete: {overall_score:.2f}%")
 
-            result = {
-                'score': overall_score,
-                'details': {
-                    'duration': duration,
-                    'sample_rate': sr,
-                    'spectral_features': spectral_analysis,
-                    'voice_characteristics': voice_analysis,
-                    'background_noise': noise_analysis,
-                    'silence_analysis': silence_analysis
-                },
-                'indicators': indicators
-            }
+                result = {
+                    'score': overall_score,
+                    'details': {
+                        'duration': duration,
+                        'sample_rate': sr,
+                        'spectral_features': spectral_analysis,
+                        'voice_characteristics': voice_analysis,
+                        'background_noise': noise_analysis,
+                        'silence_analysis': silence_analysis
+                    },
+                    'indicators': indicators
+                }
 
-            return _convert_to_native(result)
+                self._cleanup_converted()
+                return _convert_to_native(result)
+
+            except Exception as analysis_error:
+                logger.error(f"Error during analysis steps: {str(analysis_error)}")
+                self._cleanup_converted()
+                # Return fallback with partial results
+                return {
+                    'score': 25.0,  # Neutral score for audio
+                    'details': {
+                        'duration': duration if 'duration' in locals() else 0.0,
+                        'sample_rate': sr if 'sr' in locals() else 0,
+                        'spectral_features': {},
+                        'voice_characteristics': {},
+                        'background_noise': {},
+                        'silence_analysis': {}
+                    },
+                    'indicators': ['Analysis encountered partial error - used limited analysis']
+                }
 
         except Exception as e:
             logger.error(f"Audio forensics analysis failed: {str(e)}")
+            self._cleanup_converted()
             return self._fallback_analysis()
 
     def _analyze_spectral_features(self, y: np.ndarray, sr: int) -> Dict[str, Any]:
