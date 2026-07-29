@@ -1,23 +1,7 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxDuration": 300
-      }
+  "functions": {
+    "VeriVision/wsgi.py": {
+      "maxDuration": 300
     }
-  ],
-  "routes": [
-    {
-      "src": "/static/(.*)",
-      "dest": "/staticfiles/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "api/index.py"
-    }
-  ],
-  "buildCommand": "python manage.py collectstatic --noinput --clear"
+  }
 }
