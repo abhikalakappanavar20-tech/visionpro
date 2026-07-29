@@ -31,16 +31,7 @@ soundfile==0.12.1
 # Video Processing
 imageio-ffmpeg==0.4.9
 
-# Machine Learning
-torch>=2.2.0
-torchvision>=0.17.0
-facenet-pytorch>=0.3.0
-
-# AI Deepfake Detection (Hugging Face)
-transformers>=4.36.0
-huggingface-hub>=0.20.0
-
-# URL Analysis
+# HTTP / API
 requests>=2.31.0
 beautifulsoup4>=4.12.0
 

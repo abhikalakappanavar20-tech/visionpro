@@ -6,14 +6,21 @@ Uses pre-trained models from Hugging Face for genuine deepfake detection:
 - Video: R3D-18 for temporal deepfake detection
 - Audio: Wav2Vec2 for synthetic speech detection (garystafford/wav2vec2-deepfake-voice-detector)
 
-All models are lazy-loaded on first use to avoid slow startup.
+Supports two modes:
+1. Local inference (requires torch + transformers installed)
+2. Hugging Face Inference API (uses HTTP requests, no local ML libs needed)
+
+When neither is available, the system gracefully falls back to forensic-only analysis.
 """
 
 import logging
 import os
+import base64
+import json
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 import numpy as np
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +35,17 @@ else:
 IMAGE_MODEL_REPO = 'abraraltaf92/deepfake-detection-models'
 AUDIO_MODEL_REPO = 'garystafford/wav2vec2-deepfake-voice-detector'
 
+# HF Inference API token (set env var HUGGINGFACE_API_TOKEN for cloud inference)
+HF_API_TOKEN = os.environ.get('HUGGINGFACE_API_TOKEN', '')
+HF_API_BASE = 'https://api-inference.huggingface.co/models'
+
 
 def _lazy_import_torch():
     try:
         import torch
         return torch
     except ImportError:
-        logger.warning("PyTorch not available. AI detection disabled.")
+        logger.debug("PyTorch not available. Local AI detection disabled.")
         return None
 
 
@@ -43,7 +54,7 @@ def _lazy_import_transformers():
         import transformers
         return transformers
     except ImportError:
-        logger.warning("transformers not available. AI detection disabled.")
+        logger.debug("transformers not available. Local AI detection disabled.")
         return None
 
 
@@ -52,7 +63,28 @@ def _lazy_import_facenet():
         from facenet_pytorch import MTCNN
         return MTCNN
     except ImportError:
-        logger.warning("facenet-pytorch not available. Face detection disabled.")
+        logger.debug("facenet-pytorch not available. Face detection disabled.")
+        return None
+
+
+def _call_hf_api(model_id: str, data: bytes, token: str = HF_API_TOKEN) -> Optional[dict]:
+    """Call Hugging Face Inference API with binary data."""
+    if not token:
+        return None
+    headers = {'Authorization': f'Bearer {token}'}
+    try:
+        resp = requests.post(
+            f'{HF_API_BASE}/{model_id}',
+            headers=headers,
+            data=data,
+            timeout=30,
+        )
+        if resp.status_code == 200:
+            return resp.json()
+        logger.warning(f"HF API error {resp.status_code}: {resp.text[:200]}")
+        return None
+    except Exception as e:
+        logger.warning(f"HF API call failed: {e}")
         return None
 
 
@@ -60,8 +92,8 @@ class ImageAIDetector:
     """
     Real deepfake detection for images using a pre-trained ResNet-18.
 
-    Downloads model weights from Hugging Face on first use.
-    Uses MTCNN for face extraction, then classifies each face.
+    Tries local inference first (if torch available), then falls back
+    to Hugging Face Inference API (if token configured).
     """
 
     def __init__(self, device: str = None):
@@ -83,6 +115,7 @@ class ImageAIDetector:
     def _load_model(self):
         torch = _lazy_import_torch()
         if torch is None:
+            logger.info("torch not available — image AI will use HF API or fallback")
             return
 
         try:
@@ -95,26 +128,22 @@ class ImageAIDetector:
 
             logger.info(f"Downloading image deepfake model from {IMAGE_MODEL_REPO}...")
 
-            # Download ResNet-18 weights
             weights_path = hf_hub_download(
                 repo_id=IMAGE_MODEL_REPO,
                 filename='resnet18_best.pth',
                 cache_dir=str(MODELS_DIR),
             )
 
-            # Build ResNet-18 with binary classification head
             model = tv_models.resnet18(pretrained=False)
             num_ftrs = model.fc.in_features
             model.fc = torch.nn.Linear(num_ftrs, 2)
 
-            # Load trained weights
             state_dict = torch.load(weights_path, map_location='cpu', weights_only=True)
             if 'model_state_dict' in state_dict:
                 state_dict = state_dict['model_state_dict']
             elif 'state_dict' in state_dict:
                 state_dict = state_dict['state_dict']
 
-            # Handle DataParallel keys
             cleaned = {}
             for k, v in state_dict.items():
                 cleaned[k.replace('module.', '')] = v
@@ -124,7 +153,6 @@ class ImageAIDetector:
             model.eval()
             self.model = model
 
-            # Image preprocessing
             self.transform = transforms.Compose([
                 transforms.Resize((224, 224)),
                 transforms.ToTensor(),
@@ -132,7 +160,6 @@ class ImageAIDetector:
                                      std=[0.229, 0.224, 0.225])
             ])
 
-            # MTCNN for face detection
             MTCNN = _lazy_import_facenet()
             if MTCNN is not None:
                 self.mtcnn = MTCNN(keep_all=True, device=self.device,
@@ -146,30 +173,69 @@ class ImageAIDetector:
             self.model_loaded = False
 
     def analyze(self, image_path: str) -> Dict[str, Any]:
-        """
-        Analyze an image for deepfake content.
-
-        Returns:
-            dict with score (0-100 manipulation likelihood), details, indicators
-        """
         self._ensure_loaded()
 
-        if not self.model_loaded:
+        if self.model_loaded:
+            return self._analyze_local(image_path)
+
+        if HF_API_TOKEN:
+            return self._analyze_via_api(image_path)
+
+        return {
+            'score': 50.0,
+            'details': {'model_loaded': False, 'message': 'AI model not available (set HUGGINGFACE_API_TOKEN for cloud inference)'},
+            'indicators': ['AI image detection unavailable - model not loaded']
+        }
+
+    def _analyze_via_api(self, image_path: str) -> Dict[str, Any]:
+        try:
+            with open(image_path, 'rb') as f:
+                image_data = f.read()
+            result = _call_hf_api(IMAGE_MODEL_REPO, image_data)
+            if result is None:
+                return {
+                    'score': 50.0,
+                    'details': {'error': 'HF API returned no result'},
+                    'indicators': ['AI image detection via API failed']
+                }
+            if isinstance(result, list) and len(result) > 0:
+                scores = {list(item.keys())[0]: list(item.values())[0] for item in result if isinstance(item, dict)}
+                fake_score = scores.get('fake', scores.get('FAKE', 50))
+                real_score = scores.get('real', scores.get('REAL', 50))
+                if isinstance(fake_score, (int, float)):
+                    combined = float(fake_score) * 100 if fake_score <= 1 else float(fake_score)
+                else:
+                    combined = 50.0
+                return {
+                    'score': round(combined, 2),
+                    'details': {
+                        'model': f'HF API ({IMAGE_MODEL_REPO})',
+                        'api_response': result,
+                    },
+                    'indicators': [f'API inference: {combined:.1f}% fake probability']
+                }
             return {
                 'score': 50.0,
-                'details': {'model_loaded': False, 'message': 'AI model not available'},
-                'indicators': ['AI image detection unavailable - model not loaded']
+                'details': {'api_response': result},
+                'indicators': ['AI image detection returned unexpected format']
+            }
+        except Exception as e:
+            logger.error(f"Image AI API analysis failed: {e}")
+            return {
+                'score': 50.0,
+                'details': {'error': str(e)},
+                'indicators': [f'AI analysis error: {e}']
             }
 
+    def _analyze_local(self, image_path: str) -> Dict[str, Any]:
         torch = _lazy_import_torch()
         from PIL import Image
 
         try:
             image = Image.open(image_path).convert('RGB')
-            faces = self._extract_faces(image, image_path)
+            faces = self._extract_faces(image)
 
             if not faces:
-                # No faces found - analyze full image
                 score = self._classify_image(image)
                 return {
                     'score': score,
@@ -183,13 +249,11 @@ class ImageAIDetector:
                     'indicators': self._make_indicators(score, 0)
                 }
 
-            # Analyze each face
             face_scores = []
             for i, face_tensor in enumerate(faces):
                 face_score = self._classify_tensor(face_tensor)
                 face_scores.append(round(face_score, 2))
 
-            # Aggregate: weighted toward highest-scoring face (most suspicious)
             avg_score = np.mean(face_scores)
             max_score = np.max(face_scores)
             combined = 0.6 * max_score + 0.4 * avg_score
@@ -215,8 +279,7 @@ class ImageAIDetector:
                 'indicators': [f'AI analysis error: {e}']
             }
 
-    def _extract_faces(self, pil_image, image_path: str):
-        """Extract face tensors using MTCNN or fallback to full image."""
+    def _extract_faces(self, pil_image):
         torch = _lazy_import_torch()
         if torch is None:
             return []
@@ -229,23 +292,20 @@ class ImageAIDetector:
             except Exception as e:
                 logger.debug(f"MTCNN face extraction failed: {e}")
 
-        # Fallback: use full image as single "face"
         tensor = self.transform(pil_image).unsqueeze(0).to(self.device)
         return [tensor]
 
     def _classify_image(self, pil_image) -> float:
-        """Classify a full image."""
         torch = _lazy_import_torch()
         tensor = self.transform(pil_image).unsqueeze(0).to(self.device)
         return self._classify_tensor(tensor)
 
     def _classify_tensor(self, tensor) -> float:
-        """Run model inference on a tensor, return fake probability 0-100."""
         torch = _lazy_import_torch()
         with torch.no_grad():
             output = self.model(tensor)
             probs = torch.softmax(output, dim=1)
-            fake_prob = probs[0][1].item()  # index 1 = fake
+            fake_prob = probs[0][1].item()
             return fake_prob * 100.0
 
     def _make_indicators(self, score: float, num_faces: int) -> List[str]:
@@ -274,17 +334,11 @@ class VideoAIDetector:
         self.device = device or self.image_detector.device
 
     def analyze(self, video_path: str, max_frames: int = 20) -> Dict[str, Any]:
-        """
-        Analyze video by extracting key frames and running image detection.
-
-        Returns:
-            dict with score, details, indicators
-        """
         torch = _lazy_import_torch()
-        if torch is None:
+        if torch is None and not HF_API_TOKEN:
             return {
                 'score': 50.0,
-                'details': {'message': 'PyTorch not available'},
+                'details': {'message': 'PyTorch and HF API not available'},
                 'indicators': ['Video AI detection unavailable']
             }
 
@@ -303,7 +357,6 @@ class VideoAIDetector:
             fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
             duration = total_frames / fps if fps > 0 else 0
 
-            # Extract evenly-spaced frames
             frame_indices = np.linspace(0, max(0, total_frames - 1), min(max_frames, total_frames), dtype=int)
 
             frame_scores = []
@@ -313,14 +366,20 @@ class VideoAIDetector:
                 if not ret:
                     continue
 
-                # Convert BGR to RGB
                 from PIL import Image
+                import tempfile
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 pil_frame = Image.fromarray(rgb)
 
-                # Run image detector on this frame
-                result = self.image_detector.analyze(pil_frame)
+                with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as f:
+                    pil_frame.save(f, format='JPEG')
+                    tmp_path = f.name
+
+                result = self.image_detector.analyze(tmp_path)
                 frame_scores.append(result['score'])
+
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
 
             cap.release()
 
@@ -331,15 +390,12 @@ class VideoAIDetector:
                     'indicators': ['Could not extract frames from video']
                 }
 
-            # Temporal analysis
             avg_score = np.mean(frame_scores)
             max_score = np.max(frame_scores)
             std_score = np.std(frame_scores)
 
-            # Consistency check: AI videos often have suspiciously uniform scores
             consistency = 100 - min(100, std_score * 5)
 
-            # Combine: high max + high avg + high consistency = likely fake
             temporal_bonus = 0
             if consistency > 85 and avg_score > 55:
                 temporal_bonus = 10
@@ -390,9 +446,7 @@ class VideoAIDetector:
 
 class AudioAIDetector:
     """
-    Deepfake audio detection using Wav2Vec2.
-
-    Uses garystafford/wav2vec2-deepfake-voice-detector from Hugging Face.
+    Deepfake audio detection using Wav2Vec2 via HF Inference API or local model.
     """
 
     def __init__(self, device: str = None):
@@ -438,35 +492,72 @@ class AudioAIDetector:
             self.model_loaded = False
 
     def analyze(self, audio_path: str) -> Dict[str, Any]:
-        """
-        Analyze audio for synthetic/deepfake speech.
-
-        Returns:
-            dict with score (0-100 fake likelihood), details, indicators
-        """
         self._ensure_loaded()
 
-        if not self.model_loaded:
+        if self.model_loaded:
+            return self._analyze_local(audio_path)
+
+        if HF_API_TOKEN:
+            return self._analyze_via_api(audio_path)
+
+        return {
+            'score': 50.0,
+            'details': {'model_loaded': False, 'message': 'Audio AI model not available'},
+            'indicators': ['AI audio detection unavailable - model not loaded']
+        }
+
+    def _analyze_via_api(self, audio_path: str) -> Dict[str, Any]:
+        try:
+            with open(audio_path, 'rb') as f:
+                audio_data = f.read()
+            result = _call_hf_api(AUDIO_MODEL_REPO, audio_data)
+            if result is None:
+                return {
+                    'score': 50.0,
+                    'details': {'error': 'HF API returned no result'},
+                    'indicators': ['AI audio detection via API failed']
+                }
+            if isinstance(result, list) and len(result) > 0:
+                scores = {list(item.keys())[0]: list(item.values())[0] for item in result if isinstance(item, dict)}
+                fake_score = scores.get('fake', scores.get('spoof', scores.get('synthetic', 50)))
+                if isinstance(fake_score, (int, float)):
+                    score = float(fake_score) * 100 if fake_score <= 1 else float(fake_score)
+                else:
+                    score = 50.0
+                return {
+                    'score': round(score, 2),
+                    'details': {
+                        'model': f'HF API ({AUDIO_MODEL_REPO})',
+                        'api_response': result,
+                    },
+                    'indicators': [f'API inference: {score:.1f}% fake probability']
+                }
             return {
                 'score': 50.0,
-                'details': {'model_loaded': False, 'message': 'Audio AI model not available'},
-                'indicators': ['AI audio detection unavailable - model not loaded']
+                'details': {'api_response': result},
+                'indicators': ['Audio AI detection returned unexpected format']
+            }
+        except Exception as e:
+            logger.error(f"Audio AI API analysis failed: {e}")
+            return {
+                'score': 50.0,
+                'details': {'error': str(e)},
+                'indicators': [f'Audio AI analysis error: {e}']
             }
 
+    def _analyze_local(self, audio_path: str) -> Dict[str, Any]:
         torch = _lazy_import_torch()
 
         try:
             import librosa
             import soundfile as sf
 
-            # Load audio at 16kHz (required by Wav2Vec2)
             target_sr = 16000
-            max_duration = 30  # seconds
+            max_duration = 30
 
             try:
                 waveform, sr = librosa.load(audio_path, sr=target_sr, duration=max_duration)
             except Exception:
-                # Fallback: try soundfile directly
                 data, sr = sf.read(audio_path)
                 if sr != target_sr:
                     import scipy.signal
@@ -476,8 +567,7 @@ class AudioAIDetector:
 
             duration = len(waveform) / sr
 
-            # Process in chunks if audio is long (Wav2Vec2 has token limit)
-            chunk_length = 4 * target_sr  # 4 seconds
+            chunk_length = 4 * target_sr
             chunks = []
             for start in range(0, len(waveform), chunk_length):
                 chunk = waveform[start:start + chunk_length]
@@ -485,7 +575,6 @@ class AudioAIDetector:
                     chunk = np.pad(chunk, (0, chunk_length - len(chunk)))
                 chunks.append(chunk)
 
-            # Analyze each chunk
             fake_probs = []
             for chunk in chunks:
                 inputs = self.feature_extractor(
@@ -499,7 +588,6 @@ class AudioAIDetector:
                 with torch.no_grad():
                     outputs = self.model(input_values)
                     probs = torch.softmax(outputs.logits, dim=1)
-                    # Assuming label 1 = fake/synthetic
                     if hasattr(self.model.config, 'id2label'):
                         labels = self.model.config.id2label
                         fake_idx = 1 if labels.get(1, '').lower() in ['fake', 'spoof', 'synthetic', 'deepfake'] else 0
@@ -508,11 +596,9 @@ class AudioAIDetector:
                     fake_prob = probs[0][fake_idx].item()
                     fake_probs.append(fake_prob)
 
-            # Aggregate chunk results
             avg_fake = np.mean(fake_probs) * 100
             max_fake = np.max(fake_probs) * 100
 
-            # Weight toward the most suspicious chunk
             combined = 0.7 * max_fake + 0.3 * avg_fake
 
             return {
