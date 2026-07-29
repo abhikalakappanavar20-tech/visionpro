@@ -19,7 +19,7 @@ try:
     import torchvision.transforms as transforms
     from PIL import Image
     TORCH_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError):
     TORCH_AVAILABLE = False
 
 try:

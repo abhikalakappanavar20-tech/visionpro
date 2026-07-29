@@ -24,7 +24,7 @@ class DeepfakeAnalyzerTest(TestCase):
     def test_analyze_media_with_image(self):
         """Test analyzing an image file"""
         # Create a simple test image
-        img = Image.new('RGB', (100, 100), color='red')
+        img = Image.new('RGB', (300, 300), color='red')
         img_io = BytesIO()
         img.save(img_io, 'JPEG')
         img_io.seek(0)

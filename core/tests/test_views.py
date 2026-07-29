@@ -3,6 +3,7 @@ Tests for core views
 """
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.contrib.auth.models import User
 from core.models import MediaScan
 import json
 
@@ -32,6 +33,8 @@ class ScanViewTest(TestCase):
     def setUp(self):
         """Set up test client"""
         self.client = Client()
+        self.user = User.objects.create_user(username='testuser', password='testpass123')
+        self.client.login(username='testuser', password='testpass123')
 
     def test_scan_page_status(self):
         """Test scan page loads successfully"""
@@ -51,8 +54,11 @@ class DashboardViewTest(TestCase):
     def setUp(self):
         """Set up test client and data"""
         self.client = Client()
+        self.user = User.objects.create_user(username='testuser', password='testpass123')
+        self.client.login(username='testuser', password='testpass123')
         # Create some test scans
         MediaScan.objects.create(
+            user=self.user,
             file_type='image',
             scan_result='fake',
             confidence_score=90.0,
@@ -60,6 +66,7 @@ class DashboardViewTest(TestCase):
             processing_time=2.0
         )
         MediaScan.objects.create(
+            user=self.user,
             file_type='video',
             scan_result='real',
             confidence_score=85.0,
@@ -86,7 +93,10 @@ class HistoryViewTest(TestCase):
     def setUp(self):
         """Set up test client and data"""
         self.client = Client()
+        self.user = User.objects.create_user(username='testuser', password='testpass123')
+        self.client.login(username='testuser', password='testpass123')
         self.scan = MediaScan.objects.create(
+            user=self.user,
             file_type='image',
             scan_result='fake',
             confidence_score=90.0,
@@ -118,7 +128,10 @@ class ResultViewTest(TestCase):
     def setUp(self):
         """Set up test client and data"""
         self.client = Client()
+        self.user = User.objects.create_user(username='testuser', password='testpass123')
+        self.client.login(username='testuser', password='testpass123')
         self.scan = MediaScan.objects.create(
+            user=self.user,
             file_type='image',
             scan_result='fake',
             confidence_score=95.0,

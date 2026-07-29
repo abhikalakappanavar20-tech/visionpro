@@ -483,11 +483,6 @@ def api_stats(request):
     return JsonResponse(data)
 
 
-def loading_scan(request):
-    """Template for showing loading animation during scan"""
-    return render(request, 'core/loading_scan.html')
-
-
 # ========== Authentication Views ==========
 
 def register(request):

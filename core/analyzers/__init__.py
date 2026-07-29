@@ -20,9 +20,7 @@ from .video_forensics import VideoForensicsAnalyzer
 from .audio_forensics import AudioForensicsAnalyzer
 from .source_detector import SourceDetector
 from .forensic_pipeline import ForensicPipeline
-from .ml_adapter import MLModelAdapter, EnsembleAnalyzer
 from .spectral_analyzer import SpectralAnalyzer
-from .ai_deepfake_detector import ImageAIDetector, VideoAIDetector, AudioAIDetector
 
 __all__ = [
     'BaseAnalyzer',
@@ -31,10 +29,7 @@ __all__ = [
     'AudioForensicsAnalyzer',
     'SourceDetector',
     'ForensicPipeline',
-    'MLModelAdapter',
-    'EnsembleAnalyzer',
     'SpectralAnalyzer',
-    'ImageAIDetector',
-    'VideoAIDetector',
-    'AudioAIDetector',
 ]
+
+__test__ = False

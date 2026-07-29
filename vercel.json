@@ -15,10 +15,6 @@
       "dest": "/staticfiles/$1"
     },
     {
-      "src": "/media/(.*)",
-      "dest": "/media/$1"
-    },
-    {
       "handle": "filesystem"
     },
     {
@@ -26,5 +22,6 @@
       "dest": "api/index.py"
     }
   ],
-  "installCommand": "pip install -r requirements.txt"
+  "installCommand": "pip install --no-cache-dir -r requirements-production.txt",
+  "buildCommand": "python manage.py collectstatic --noinput"
 }
