@@ -13,6 +13,7 @@ from django.db.models import Count, Q, Avg
 from django.core.paginator import Paginator
 from datetime import timedelta
 import os
+import uuid
 import json
 import logging
 
@@ -144,21 +145,44 @@ def scan(request):
                         if os.path.exists(tmp_path):
                             os.unlink(tmp_path)
 
-                    # Create database record
-                    scan = MediaScan.objects.create(
-                        file=file,
-                        file_type=file_type,
-                        original_filename=file.name,
-                        scan_result=result['scan_result'],
-                        confidence_score=result['confidence_score'],
-                        trust_score=result['trust_score'],
-                        forensic_match=result.get('forensic_match', False),
-                        heatmap_data=result.get('heatmap_data', {}),
-                        analysis_details=result.get('forensic_details', result.get('analysis_details', {})),
-                        processing_time=result.get('processing_time', 0),
-                        ip_address=get_client_ip(request),
-                        user=request.user if request.user.is_authenticated else None
-                    )
+                    # Create database record - save file to writable location
+                    try:
+                        scan = MediaScan.objects.create(
+                            file=file,
+                            file_type=file_type,
+                            original_filename=file.name,
+                            scan_result=result['scan_result'],
+                            confidence_score=result['confidence_score'],
+                            trust_score=result['trust_score'],
+                            forensic_match=result.get('forensic_match', False),
+                            heatmap_data=result.get('heatmap_data', {}),
+                            analysis_details=result.get('forensic_details', result.get('analysis_details', {})),
+                            processing_time=result.get('processing_time', 0),
+                            ip_address=get_client_ip(request),
+                            user=request.user if request.user.is_authenticated else None
+                        )
+                    except (OSError, PermissionError) as _file_save_err:
+                        # Fallback: save to /tmp if default MEDIA_ROOT is read-only (Vercel)
+                        import shutil
+                        _tmp_dir = '/tmp/media/uploads'
+                        os.makedirs(_tmp_dir, exist_ok=True)
+                        _tmp_path = os.path.join(_tmp_dir, f"{uuid.uuid4()}_{file.name}")
+                        with open(_tmp_path, 'wb') as _f:
+                            for _chunk in file.chunks():
+                                _f.write(_chunk)
+                        scan = MediaScan.objects.create(
+                            file_type=file_type,
+                            original_filename=file.name,
+                            scan_result=result['scan_result'],
+                            confidence_score=result['confidence_score'],
+                            trust_score=result['trust_score'],
+                            forensic_match=result.get('forensic_match', False),
+                            heatmap_data=result.get('heatmap_data', {}),
+                            analysis_details=result.get('forensic_details', result.get('analysis_details', {})),
+                            processing_time=result.get('processing_time', 0),
+                            ip_address=get_client_ip(request),
+                            user=request.user if request.user.is_authenticated else None
+                        )
 
                     # Save detailed forensic analysis results if available
                     # Only save detailed results for images (video/audio have their own structure)
