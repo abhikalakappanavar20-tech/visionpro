@@ -5,7 +5,8 @@
       "src": "api/index.py",
       "use": "@vercel/python",
       "config": {
-        "maxDuration": 300
+        "maxDuration": 300,
+        "pipInstallCommand": "pip install -r requirements.txt"
       }
     }
   ],
@@ -15,12 +16,9 @@
       "dest": "/staticfiles/$1"
     },
     {
-      "handle": "filesystem"
-    },
-    {
       "src": "/(.*)",
       "dest": "api/index.py"
     }
   ],
-  "buildCommand": "python manage.py collectstatic --noinput"
+  "buildCommand": "python manage.py collectstatic --noinput --clear"
 }
