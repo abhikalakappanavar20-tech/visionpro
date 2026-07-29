@@ -30,3 +30,5 @@ staticfiles/
 # IDE
 .vscode/
 .idea/
+
+.vercel

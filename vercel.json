@@ -22,6 +22,5 @@
       "dest": "api/index.py"
     }
   ],
-  "installCommand": "pip install --no-cache-dir -r requirements-production.txt",
   "buildCommand": "python manage.py collectstatic --noinput"
 }
