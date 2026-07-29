@@ -439,17 +439,16 @@
         </div>
     </footer>
 
-    <!-- Scripts -->
+    {% block loading_overlay %}{% endblock %}
+
     <script src="/static/js/main.js"></script>
     <script>
-    // Navbar scroll effect
     (function() {
         var navbar = document.getElementById('navbar');
         var navToggle = document.getElementById('navToggle');
         var navMenu = document.getElementById('navMenu');
         var navOverlay = document.getElementById('navOverlay');
 
-        // Scroll effect
         window.addEventListener('scroll', function() {
             if (window.scrollY > 30) {
                 navbar.classList.add('scrolled');
@@ -458,7 +457,6 @@
             }
         });
 
-        // Mobile toggle
         if (navToggle) {
             navToggle.addEventListener('click', function() {
                 navMenu.classList.toggle('active');
@@ -468,7 +466,6 @@
             });
         }
 
-        // Close on overlay click
         if (navOverlay) {
             navOverlay.addEventListener('click', function() {
                 navMenu.classList.remove('active');

@@ -1,909 +1,587 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analysis Results - VeriVision</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/navbar.css">
-    <link rel="stylesheet" href="/static/css/bg-animation.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        .heatmap-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            border-radius: 8px;
-        }
+{% extends 'core/base.html' %}
+{% block title %}Analysis Results - VeriVision{% endblock %}
 
-        .hotspot {
-            position: absolute;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            animation: pulse 2s infinite;
-        }
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/result.css">
+{% endblock %}
 
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 0.6;
-                transform: translate(-50%, -50%) scale(1);
-            }
-            50% {
-                opacity: 0.8;
-                transform: translate(-50%, -50%) scale(1.1);
-            }
-        }
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-clipboard-check"></i> Analysis Results</h1>
+    <p>Deepfake detection report with XAI visualization</p>
+</div>
 
-        /* Source Detection Styles */
-        .source-detection-section {
-            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
-            border: 1px solid #00d4ff;
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-        }
+<!-- Result Status Banner -->
+<div class="result-banner result-banner-{{ scan.scan_result }}">
+    <div class="result-icon">
+        {% if scan.scan_result == 'real' %}
+            <i class="fas fa-check-circle"></i>
+        {% elif scan.scan_result == 'suspicious' %}
+            <i class="fas fa-exclamation-circle"></i>
+        {% else %}
+            <i class="fas fa-times-circle"></i>
+        {% endif %}
+    </div>
+    <div class="result-text">
+        <h2>{{ scan.scan_result|title }}</h2>
+        {% if scan.scan_result == 'real' %}
+            <p>This content is <strong>REAL</strong> - No filters, editing, or AI manipulation detected.</p>
+        {% elif scan.scan_result == 'suspicious' %}
+            <p>This content is <strong>SUSPICIOUS</strong> - The analysis showed some indicators that warrant further review.</p>
+        {% else %}
+            <p>This content is <strong>FAKE</strong> - Editing, filters, or AI manipulation detected.</p>
+        {% endif %}
+    </div>
+    <div class="result-meta">
+        <span class="result-id">ID: #{{ scan.id }}</span>
+        <span class="result-time">{{ scan.created_at|timesince }} ago</span>
+    </div>
+</div>
 
-        .source-indicator {
-            background: rgba(0, 212, 255, 0.1);
-            border: 1px solid rgba(0, 212, 255, 0.3);
-            border-radius: 6px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .source-indicator:last-child {
-            margin-bottom: 0;
-        }
-
-        .source-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.75rem;
-        }
-
-        .source-name {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #00d4ff;
-        }
-
-        .source-confidence {
-            padding: 0.25rem 0.75rem;
-            border-radius: 12px;
-            font-size: 0.875rem;
-            font-weight: 600;
-        }
-
-        .confidence-high {
-            background: rgba(255, 59, 48, 0.2);
-            color: #ff3b30;
-            border: 1px solid rgba(255, 59, 48, 0.5);
-        }
-
-        .confidence-medium {
-            background: rgba(255, 149, 0, 0.2);
-            color: #ff9500;
-            border: 1px solid rgba(255, 149, 0, 0.5);
-        }
-
-        .confidence-low {
-            background: rgba(52, 199, 89, 0.2);
-            color: #34c759;
-            border: 1px solid rgba(52, 199, 89, 0.5);
-        }
-
-        .source-indicators-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .source-indicators-list li {
-            padding: 0.375rem 0;
-            font-size: 0.875rem;
-            color: #b0b8c4;
-        }
-
-        .source-indicators-list li i {
-            color: #00d4ff;
-            margin-right: 0.5rem;
-        }
-
-        /* Enhanced Technical Analysis */
-        .analysis-item {
-            display: flex;
-            align-items: center;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .analysis-item:last-child {
-            border-bottom: none;
-        }
-
-        .analysis-item .detail-label {
-            flex: 0 0 120px;
-            font-weight: 500;
-            color: #b0b8c4;
-        }
-
-        .analysis-item .detail-value {
-            flex: 0 0 80px;
-            font-weight: 600;
-            color: #00d4ff;
-        }
-
-        .analysis-item .detail-desc {
-            flex: 1;
-            font-size: 0.875rem;
-            color: #8b95a5;
-            margin-left: 1rem;
-        }
-
-        .text-muted {
-            color: #8b95a5 !important;
-        }
-
-        .text-success {
-            color: #34c759 !important;
-        }
-
-        .text-warning {
-            color: #ff9500 !important;
-        }
-
-        /* Findings Explained Section */
-        .findings-explained {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .finding-card {
-            display: flex;
-            gap: 15px;
-            padding: 15px;
-            background: rgba(0, 212, 255, 0.05);
-            border: 1px solid rgba(0, 212, 255, 0.2);
-            border-radius: 8px;
-            transition: all 0.3s;
-        }
-
-        .finding-card:hover {
-            background: rgba(0, 212, 255, 0.08);
-            border-color: rgba(0, 212, 255, 0.3);
-        }
-
-        .finding-card.finding-ai {
-            background: rgba(255, 149, 0, 0.1);
-            border-color: rgba(255, 149, 0, 0.3);
-        }
-
-        .finding-icon {
-            flex-shrink: 0;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-
-        .finding-content {
-            flex: 1;
-        }
-
-        .finding-content h5 {
-            margin: 0 0 10px 0;
-            color: #00d4ff;
-            font-size: 16px;
-        }
-
-        .finding-content p {
-            margin: 5px 0;
-            color: #b0b8c4;
-            line-height: 1.6;
-        }
-
-        .finding-content ul {
-            margin: 10px 0;
-            padding-left: 20px;
-            color: #b0b8c4;
-        }
-
-        .finding-content li {
-            margin: 5px 0;
-        }
-
-        .finding-content strong {
-            color: #ffffff;
-        }
-
-        .finding-content em {
-            color: #8b95a5;
-            font-style: italic;
-        }
-
-        @media (max-width: 768px) {
-            .finding-card {
-                flex-direction: column;
-            }
-
-            .finding-icon {
-                width: 100%;
-                height: 40px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <!-- Navigation -->
-    <nav class="navbar" id="navbar">
-        <div class="container">
-            <a href="{% url 'home' %}" class="nav-brand">
-                <span class="brand-icon"><i class="fas fa-shield-alt"></i></span>
-                <span>VeriVision</span>
-            </a>
-            <ul class="nav-menu" id="navMenu">
-                <li><a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}"><i class="fas fa-home"></i> Home</a></li>
-                <li><a href="{% url 'scan' %}" class="{% if request.resolver_match.url_name == 'scan' or request.resolver_match.url_name == 'scan_url' %}active{% endif %}"><i class="fas fa-search"></i> Scan</a></li>
-                <li><a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
-                <li><a href="{% url 'history' %}" class="{% if request.resolver_match.url_name == 'history' %}active{% endif %}"><i class="fas fa-history"></i> History</a></li>
-                {% if user.is_authenticated and user.is_staff %}
-                <li><a href="{% url 'admin_panel_dashboard' %}" class="{% if 'admin_panel' in request.resolver_match.url_name|default:'' %}active{% endif %}"><i class="fas fa-user-shield"></i> Admin</a></li>
-                {% endif %}
-                {% if user.is_authenticated %}
-                <li class="auth-dropdown">
-                    <a href="{% url 'profile' %}">
-                        <span class="user-avatar">{{ user.username|first }}</span>
-                        <span>{{ user.username }}</span>
-                        <i class="fas fa-chevron-down" style="font-size:0.7rem; margin-left:2px;"></i>
-                    </a>
-                    <div class="dropdown-menu">
-                        <a href="{% url 'profile' %}"><i class="fas fa-user"></i> Profile</a>
-                        {% if user.is_staff %}<a href="{% url 'admin_panel_dashboard' %}"><i class="fas fa-user-shield"></i> Admin Panel</a>{% endif %}
-                        <div class="dropdown-divider"></div>
-                        <a href="{% url 'logout' %}" class="logout-link"><i class="fas fa-sign-out-alt"></i> Logout</a>
-                    </div>
-                </li>
-                {% else %}
-                <div class="nav-divider"></div>
-                <div class="nav-auth">
-                    <a href="{% url 'login' %}" class="btn-login"><i class="fas fa-sign-in-alt"></i> Login</a>
-                    <a href="{% url 'register' %}" class="btn-register"><i class="fas fa-user-plus"></i> Register</a>
-                </div>
-                {% endif %}
-            </ul>
-            <button class="nav-toggle" id="navToggle"><span></span></button>
+<!-- Scores Grid -->
+<div class="scores-grid">
+    <div class="score-card score-card-confidence">
+        <div class="score-header">
+            <h3><i class="fas fa-brain"></i> AI Confidence</h3>
         </div>
-        <div class="nav-overlay" id="navOverlay"></div>
-    </nav>
-    <div style="height: 70px;"></div>
+        <div class="score-value">{{ scan.confidence_score }}%</div>
+        <div class="score-label">Detection Confidence</div>
+        <div class="score-bar">
+            <div class="score-bar-fill" style="width: {{ scan.confidence_score }}%"></div>
+        </div>
+    </div>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="gradient-orbs"><div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div><div class="orb orb-4"></div><div class="orb orb-5"></div><div class="orb orb-6"></div></div>
-        <div class="shimmer-sweep"></div>
-        <div class="dot-pattern"></div>
-        <div class="floating-shapes"><div class="shape shape-1"></div><div class="shape shape-2"></div><div class="shape shape-3"></div><div class="shape shape-4"></div><div class="shape shape-5"></div><div class="shape shape-6"></div><div class="shape shape-7"></div></div>
-        <div class="particles"><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div></div>
-        <div class="container">
-            <div class="page-header">
-                <h1><i class="fas fa-clipboard-check"></i> Analysis Results</h1>
-                <p>Deepfake detection report with XAI visualization</p>
+    <div class="score-card score-card-trust">
+        <div class="score-header">
+            <h3><i class="fas fa-shield-alt"></i> Trust Score</h3>
+        </div>
+        <div class="score-value {% if scan.trust_score >= 80 %}high{% elif scan.trust_score >= 50 %}medium{% else %}low{% endif %}">
+            {{ scan.trust_score }}/100
+        </div>
+        <div class="score-label">Trust Score</div>
+        <div class="score-bar">
+            <div class="score-bar-fill {% if scan.trust_score >= 80 %}high{% elif scan.trust_score >= 50 %}medium{% else %}low{% endif %}"
+                 style="width: {{ scan.trust_score }}%"></div>
+        </div>
+    </div>
+
+    <div class="score-card score-card-threat">
+        <div class="score-header">
+            <h3><i class="fas fa-radiation"></i> Threat Level</h3>
+        </div>
+        <div class="score-value {% if threat_level >= 70 %}critical{% elif threat_level >= 40 %}warning{% else %}safe{% endif %}">
+            {{ threat_level }}%
+        </div>
+        <div class="score-label">Overall Threat</div>
+        <div class="score-bar">
+            <div class="score-bar-fill {% if threat_level >= 70 %}critical{% elif threat_level >= 40 %}warning{% else %}safe{% endif %}"
+                 style="width: {{ threat_level }}%"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Analysis Section -->
+<div class="analysis-main">
+    <!-- Visualization Panel -->
+    <div class="visualization-panel">
+        <h3><i class="fas fa-eye"></i> XAI Visualization</h3>
+
+        {% if scan.file %}
+            <div class="media-preview-container" id="mediaContainer">
+                {% if scan.file_type == 'video' %}
+                    <video controls class="media-preview" id="mediaPreview">
+                        <source src="{{ scan.file.url }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                {% elif scan.file_type == 'audio' %}
+                    <audio controls class="media-preview" id="mediaPreview">
+                        <source src="{{ scan.file.url }}" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                {% else %}
+                    <img src="{{ scan.file.url }}" alt="Analyzed media" class="media-preview" id="mediaPreview">
+                {% endif %}
+                <div class="heatmap-overlay" id="heatmapOverlay"></div>
             </div>
+        {% else %}
+        <div class="url-preview">
+            <i class="fas fa-link fa-3x"></i>
+            <p>{{ scan.url }}</p>
+            <span class="badge">URL Analysis</span>
+        </div>
+        {% endif %}
 
-            <!-- Result Status Banner -->
-            <div class="result-banner result-banner-{{ scan.scan_result }}">
-                <div class="result-icon">
-                    {% if scan.scan_result == 'real' %}
-                        <i class="fas fa-check-circle"></i>
-                    {% elif scan.scan_result == 'suspicious' %}
-                        <i class="fas fa-exclamation-circle"></i>
-                    {% else %}
-                        <i class="fas fa-times-circle"></i>
-                    {% endif %}
-                </div>
-                <div class="result-text">
-                    <h2>{{ scan.scan_result|title }}</h2>
-                    {% if scan.scan_result == 'real' %}
-                        <p>This content is <strong>REAL</strong> - No filters, editing, or AI manipulation detected.</p>
-                    {% elif scan.scan_result == 'suspicious' %}
-                        <p>This content is <strong>SUSPICIOUS</strong> - The analysis showed some indicators that warrant further review.</p>
-                    {% else %}
-                        <p>This content is <strong>FAKE</strong> - Editing, filters, or AI manipulation detected.</p>
-                    {% endif %}
-                </div>
-                <div class="result-meta">
-                    <span class="result-id">ID: #{{ scan.id }}</span>
-                    <span class="result-time">{{ scan.created_at|timesince }} ago</span>
-                </div>
+        <div class="heatmap-legend">
+            <div class="legend-item">
+                <div class="legend-color legend-high"></div>
+                <span>High Manipulation</span>
             </div>
-
-            <!-- Scores Grid -->
-            <div class="scores-grid">
-                <div class="score-card score-card-confidence">
-                    <div class="score-header">
-                        <h3><i class="fas fa-brain"></i> AI Confidence</h3>
-                    </div>
-                    <div class="score-value">{{ scan.confidence_score }}%</div>
-                    <div class="score-label">Detection Confidence</div>
-                    <div class="score-bar">
-                        <div class="score-bar-fill" style="width: {{ scan.confidence_score }}%"></div>
-                    </div>
-                </div>
-
-                <div class="score-card score-card-trust">
-                    <div class="score-header">
-                        <h3><i class="fas fa-shield-alt"></i> Trust Score</h3>
-                    </div>
-                    <div class="score-value {% if scan.trust_score >= 80 %}high{% elif scan.trust_score >= 50 %}medium{% else %}low{% endif %}">
-                        {{ scan.trust_score }}/100
-                    </div>
-                    <div class="score-label">Trust Score</div>
-                    <div class="score-bar">
-                        <div class="score-bar-fill {% if scan.trust_score >= 80 %}high{% elif scan.trust_score >= 50 %}medium{% else %}low{% endif %}"
-                             style="width: {{ scan.trust_score }}%"></div>
-                    </div>
-                </div>
-
-                <div class="score-card score-card-threat">
-                    <div class="score-header">
-                        <h3><i class="fas fa-radiation"></i> Threat Level</h3>
-                    </div>
-                    <div class="score-value {% if threat_level >= 70 %}critical{% elif threat_level >= 40 %}warning{% else %}safe{% endif %}">
-                        {{ threat_level }}%
-                    </div>
-                    <div class="score-label">Overall Threat</div>
-                    <div class="score-bar">
-                        <div class="score-bar-fill {% if threat_level >= 70 %}critical{% elif threat_level >= 40 %}warning{% else %}safe{% endif %}"
-                             style="width: {{ threat_level }}%"></div>
-                    </div>
-                </div>
+            <div class="legend-item">
+                <div class="legend-color legend-medium"></div>
+                <span>Medium Suspicion</span>
             </div>
+            <div class="legend-item">
+                <div class="legend-color legend-low"></div>
+                <span>Low Concern</span>
+            </div>
+        </div>
 
-            <!-- Main Analysis Section -->
-            <div class="analysis-main">
-                <!-- Visualization Panel -->
-                <div class="visualization-panel">
-                    <h3><i class="fas fa-eye"></i> XAI Visualization</h3>
+        {% if scan.heatmap_data.total_hotspots > 0 %}
+        <div class="hotspot-summary">
+            <p><i class="fas fa-fire"></i> <strong>{{ scan.heatmap_data.total_hotspots }}</strong> manipulation region(s) detected</p>
+            <p>Intensity: <strong>{{ scan.heatmap_data.intensity_level|title }}</strong></p>
+        </div>
+        {% endif %}
+    </div>
 
-                    {% if scan.file %}
-                        <div class="media-preview-container" id="mediaContainer">
-                            {% if scan.file_type == 'video' %}
-                                <video controls class="media-preview" id="mediaPreview">
-                                    <source src="{{ scan.file.url }}" type="video/mp4">
-                                    Your browser does not support the video tag.
-                                </video>
-                            {% elif scan.file_type == 'audio' %}
-                                <audio controls class="media-preview" id="mediaPreview">
-                                    <source src="{{ scan.file.url }}" type="audio/mpeg">
-                                    Your browser does not support the audio element.
-                                </audio>
-                            {% else %}
-                                <img src="{{ scan.file.url }}" alt="Analyzed media" class="media-preview" id="mediaPreview">
-                            {% endif %}
-                            <div class="heatmap-overlay" id="heatmapOverlay"></div>
-                        </div>
-                    {% else %}
-                    <div class="url-preview">
-                        <i class="fas fa-link fa-3x"></i>
-                        <p>{{ scan.url }}</p>
-                        <span class="badge">URL Analysis</span>
-                    </div>
-                    {% endif %}
+    <!-- Details Panel -->
+    <div class="details-panel">
+        <h3><i class="fas fa-info-circle"></i> Analysis Details</h3>
 
-                    <div class="heatmap-legend">
-                        <div class="legend-item">
-                            <div class="legend-color legend-high"></div>
-                            <span>High Manipulation</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color legend-medium"></div>
-                            <span>Medium Suspicion</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color legend-low"></div>
-                            <span>Low Concern</span>
-                        </div>
-                    </div>
+        <!-- Human-Readable Findings Section -->
+        <div class="detail-section">
+            <h4><i class="fas fa-lightbulb"></i> What This Means</h4>
+            <div class="findings-explained">
 
-                    {% if scan.heatmap_data.total_hotspots > 0 %}
-                    <div class="hotspot-summary">
-                        <p><i class="fas fa-fire"></i> <strong>{{ scan.heatmap_data.total_hotspots }}</strong> manipulation region(s) detected</p>
-                        <p>Intensity: <strong>{{ scan.heatmap_data.intensity_level|title }}</strong></p>
-                    </div>
-                    {% endif %}
-                </div>
+                {% if scan.file_type == 'image' %}
 
-                <!-- Details Panel -->
-                <div class="details-panel">
-                    <h3><i class="fas fa-info-circle"></i> Analysis Details</h3>
-
-                    <!-- Human-Readable Findings Section -->
-                    <div class="detail-section">
-                        <h4><i class="fas fa-lightbulb"></i> What This Means</h4>
-                        <div class="findings-explained">
-
-                            {% if scan.file_type == 'image' %}
-
-                                <!-- Image Findings -->
-                                {% if scan.forensic_analysis %}
-                                    <div class="finding-card">
-                                        <div class="finding-icon">
-                                            {% if scan.scan_result == 'fake' %}
-                                                <i class="fas fa-exclamation-triangle text-warning"></i>
-                                            {% else %}
-                                                <i class="fas fa-check-circle text-success"></i>
-                                            {% endif %}
-                                        </div>
-                                        <div class="finding-content">
-                                            <h5>{% if scan.scan_result == 'fake' %}Fake Content Detected{% else %}Authentic Content{% endif %}</h5>
-                                            {% if scan.scan_result == 'fake' %}
-                                                <p><strong>This content is FAKE.</strong> Our analysis detected editing, filters, or AI manipulation. The image shows signs of digital alteration.</p>
-                                            {% else %}
-                                                <p><strong>This content is REAL.</strong> Our analysis found no signs of editing, filters, or AI manipulation. This appears to be authentic content.</p>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                            {% else %}
-                                                <p><strong>No significant manipulation detected.</strong> This image appears to be original with minimal editing.</p>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-
-                                    {% if scan.forensic_analysis.has_exif is not none %}
-                                    <div class="finding-card">
-                                        <div class="finding-icon">
-                                            {% if scan.forensic_analysis.has_exif %}
-                                                <i class="fas fa-camera text-success"></i>
-                                            {% else %}
-                                                <i class="fas fa-question-circle text-warning"></i>
-                                            {% endif %}
-                                        </div>
-                                        <div class="finding-content">
-                                            <h5>Camera Metadata Check</h5>
-                                            {% if scan.forensic_analysis.has_exif %}
-                                                <p><strong>Camera metadata present.</strong> This image contains camera information (device model, settings, etc.), which suggests it was captured by a real camera device.</p>
-                                            {% else %}
-                                                <p><strong>No camera metadata found.</strong> This image is missing the typical camera information found in authentic photos, which may indicate it was generated or processed by software.</p>
-                                            {% endif %}
-                                            {% if scan.forensic_analysis.software_detected %}
-                                                <p><em>Note: Software detected - {{ scan.forensic_analysis.software_detected }}</em></p>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    {% endif %}
-
-                                    {% if scan.forensic_analysis.noise_uniformity is not none %}
-                                    <div class="finding-card">
-                                        <div class="finding-icon">
-                                            {% if scan.forensic_analysis.noise_uniformity < 0.5 %}
-                                                <i class="fas fa-robot text-warning"></i>
-                                            {% else %}
-                                                <i class="fas fa-camera-retro text-success"></i>
-                                            {% endif %}
-                                        </div>
-                                        <div class="finding-content">
-                                            <h5>Natural Pattern Analysis</h5>
-                                            {% if scan.forensic_analysis.noise_uniformity < 0.5 %}
-                                                <p><strong>Unusual noise patterns detected.</strong> Natural photos have consistent noise throughout, but this image shows irregular patterns that are common in AI-generated or heavily processed images.</p>
-                                            {% else %}
-                                                <p><strong>Natural noise patterns found.</strong> This image has the consistent noise patterns typical of authentic camera-captured photos.</p>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    {% endif %}
-
-                                    {% if scan.forensic_analysis.detected_sources %}
-                                    <div class="finding-card finding-ai">
-                                        <div class="finding-icon">
-                                            <i class="fas fa-brain text-warning"></i>
-                                        </div>
-                                        <div class="finding-content">
-                                            <h5><i class="fas fa-robot"></i> AI Generator Detection</h5>
-                                            {% if scan.forensic_analysis.detected_sources %}
-                                                <p><strong>Possible AI-generated content detected.</strong></p>
-                                                <ul>
-                                                    {% for source in scan.forensic_analysis.detected_sources %}
-                                                    <li>
-                                                        <strong>{{ source.source }}</strong> - {{ source.confidence|floatformat:0 }}% confidence
-                                                        {% if source.indicators %}
-                                                            <br><small>Indicators: {{ source.indicators|join:", " }}</small></li>
-                                                        {% endif %}
-                                                    </li>
-                                                    {% endfor %}
-                                                </ul>
-                                            {% else %}
-                                                <p>No AI generator signatures detected.</p>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    {% endif %}
-
-                            {% elif scan.analysis_details.video_analysis %}
-
-                                    <!-- Video Findings -->
-                                    <div class="finding-card">
-                                        <div class="finding-icon">
-                                            {% if scan.analysis_details.video_analysis.frame_analysis.average_score > 50 %}
-                                                <i class="fas fa-exclamation-triangle text-warning"></i>
-                                            {% else %}
-                                                <i class="fas fa-check-circle text-success"></i>
-                                            {% endif %}
-                                        </div>
-                                        <div class="finding-content">
-                                            <h5>Frame-by-Frame Analysis</h5>
-                                            <p>Analyzed <strong>{{ scan.analysis_details.video_analysis.analyzed_frames }}</strong> frames from this video.</p>
-                                            {% with avg_score=scan.analysis_details.video_analysis.frame_analysis.average_score %}
-                                                {% if avg_score > 60 %}
-                                                    <p><strong>Multiple frames show manipulation indicators.</strong> This suggests the video may have been edited or frames may have been altered.</p>
-                                                {% elif avg_score > 30 %}
-                                                    <p><strong>Some frames show manipulation.</strong> Certain frames in the video appear to be modified.</p>
-                                                {% else %}
-                                                    <p><strong>Frames appear authentic.</strong> The analyzed frames show characteristics of genuine video content.</p>
-                                                {% endif %}
-                                            {% endwith %}
-                                        </div>
-                                    </div>
-
-                                    {% if scan.analysis_details.video_analysis.temporal_consistency %}
-                                    <div class="finding-card">
-                                        <div class="finding-icon">
-                                            {% if scan.analysis_details.video_analysis.temporal_consistency.consistency_score < 60 %}
-                                                <i class="fas fa-exclamation-triangle text-warning"></i>
-                                            {% else %}
-                                                <i class="fas fa-check-circle text-success"></i>
-                                            {% endif %}
-                                        </div>
-                                        <div class="finding-content">
-                                            <h5>Temporal Consistency Check</h5>
-                                            {% with consistency=scan.analysis_details.video_analysis.temporal_consistency.consistency_score %}
-                                                {% if consistency < 60 %}
-                                                    <p><strong>Inconsistencies detected across frames.</strong> The lighting, background, or scene elements change in ways that suggest manipulation or editing.</p>
-                                                {% else %}
-                                                    <p><strong>Consistent video flow detected.</strong> The video shows natural scene transitions and consistent lighting throughout.</p>
-                                                {% endif %}
-                                            {% endwith %}
-                                        </div>
-                                    </div>
-                                    {% endif %}
-
-                                    {% if scan.analysis_details.video_analysis.face_tracking %}
-                                    <div class="finding-card">
-                                        <div class="finding-icon">
-                                            {% if scan.analysis_details.video_analysis.face_tracking.movement_anomalies > 2 %}
-                                                <i class="fas fa-exclamation-triangle text-warning"></i>
-                                            {% else %}
-                                                <i class="fas fa-check-circle text-success"></i>
-                                            {% endif %}
-                                        </div>
-                                        <div class="finding-content">
-                                            <h5>Face Movement Analysis</h5>
-                                            <p>Detected faces in <strong>{{ scan.analysis_details.video_analysis.face_tracking.faces_detected }}</strong> out of {{ scan.analysis_details.video_analysis.analyzed_frames }} frames.</p>
-                                            {% if scan.analysis_details.video_analysis.face_tracking.movement_anomalies > 2 %}
-                                                <p><strong>Unnatural face movements detected.</strong> The face tracking found {{ scan.analysis_details.video_analysis.face_tracking.movement_anomalies }} instances of sudden or jerky movements, which can indicate deepfake manipulation.</p>
-                                            {% else %}
-                                                <p><strong>Natural face movements.</strong> Face movements appear smooth and consistent throughout the video.</p>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    {% endif %}
-
-                                    {% if scan.analysis_details.video_analysis.motion_analysis %}
-                                    <div class="finding-card">
-                                        <div class="finding-icon">
-                                            {% if scan.analysis_details.video_analysis.motion_analysis.frozen_frames > 3 %}
-                                                <i class="fas fa-exclamation-triangle text-warning"></i>
-                                            {% else %}
-                                                <i class="fas fa-check-circle text-success"></i>
-                                            {% endif %}
-                                        </div>
-                                        <div class="finding-content">
-                                            <h5>Motion Pattern Analysis</h5>
-                                            {% if scan.analysis_details.video_analysis.motion_analysis.frozen_frames > 3 %}
-                                                <p><strong>Frozen frames detected.</strong> Found {{ scan.analysis_details.video_analysis.motion_analysis.frozen_frames }} instances where the video appears frozen, which is unusual for natural video.</p>
-                                            {% elif not scan.analysis_details.video_analysis.motion_analysis.motion_detected %}
-                                                <p><strong>Unusually low motion.</strong> The video shows very little movement, which may indicate static content or manipulation.</p>
-                                            {% else %}
-                                                <p><strong>Natural motion patterns.</strong> The video shows normal movement and motion patterns.</p>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    {% endif %}
-
-                                    {% if scan.detected_sources %}
-                                    <div class="finding-card finding-ai">
-                                        <div class="finding-icon">
-                                            <i class="fas fa-brain text-warning"></i>
-                                        </div>
-                                        <div class="finding-content">
-                                            <h5><i class="fas fa-robot"></i> AI Video Generator Detection</h5>
-                                            {% if scan.detected_sources %}
-                                                <p><strong>Possible AI-generated video content detected.</strong></p>
-                                                <ul>
-                                                    {% for source in scan.detected_sources %}
-                                                    <li>
-                                                        <strong>{{ source.source }}</strong> - {{ source.confidence|floatformat:0 }}% confidence
-                                                        {% if source.indicators %}
-                                                            <br><small>Indicators: {{ source.indicators|join:", " }}</small>
-                                                        {% endif %}
-                                                    </li>
-                                                    {% endfor %}
-                                                </ul>
-                                            {% else %}
-                                                <p>No AI video generator signatures detected.</p>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    {% endif %}
-
-                            {% elif scan.analysis_details.audio_analysis %}
-
-                                    <!-- Audio Findings -->
-                                    <div class="finding-card">
-                                        <div class="finding-icon">
-                                            {% if scan.analysis_details.audio_analysis.spectral_features.spectral_anomaly_score > 50 %}
-                                                <i class="fas fa-exclamation-triangle text-warning"></i>
-                                            {% else %}
-                                                <i class="fas fa-check-circle text-success"></i>
-                                            {% endif %}
-                                        </div>
-                                        <div class="finding-content">
-                                            <h5>Audio Spectral Analysis</h5>
-                                            {% with spectral_score=scan.analysis_details.audio_analysis.spectral_features.spectral_anomaly_score %}
-                                                {% if spectral_score > 60 %}
-                                                    <p><strong>Unusual spectral characteristics detected.</strong> The frequency spectrum shows patterns common in AI-generated or synthetic voices.</p>
-                                                {% else %}
-                                                    <p><strong>Natural spectral patterns found.</strong> The audio shows normal frequency characteristics of human speech.</p>
-                                                {% endif %}
-                                            {% endwith %}
-                                        </div>
-                                    </div>
-
-                                    {% if scan.analysis_details.audio_analysis.voice_characteristics %}
-                                    <div class="finding-card">
-                                        <div class="finding-icon">
-                                            {% if scan.analysis_details.audio_analysis.voice_characteristics.voice_anomaly_score > 50 %}
-                                                <i class="fas fa-exclamation-triangle text-warning"></i>
-                                            {% else %}
-                                                <i class="fas fa-check-circle text-success"></i>
-                                            {% endif %}
-                                        </div>
-                                        <div class="finding-content">
-                                            <h5>Voice Characteristic Analysis</h5>
-                                            {% with voice_score=scan.analysis_details.audio_analysis.voice_characteristics.voice_anomaly_score %}
-                                                {% if voice_score > 60 %}
-                                                    <p><strong>Potential synthetic voice detected.</strong> The voice characteristics show patterns consistent with AI voice cloning or synthesis.</p>
-                                                {% elif voice_score > 30 %}
-                                                    <p><strong>Some unusual voice patterns.</strong> The voice shows characteristics that may warrant further investigation.</p>
-                                                {% else %}
-                                                    <p><strong>Natural voice characteristics.</strong> The voice displays patterns typical of authentic human speech.</p>
-                                                {% endif %}
-                                            {% endwith %}
-                                        </div>
-                                    </div>
-                                    {% endif %}
-
-                                    {% if scan.detected_sources %}
-                                    <div class="finding-card finding-ai">
-                                        <div class="finding-icon">
-                                            <i class="fas fa-brain text-warning"></i>
-                                        </div>
-                                        <div class="finding-content">
-                                            <h5><i class="fas fa-robot"></i> AI Audio Generator Detection</h5>
-                                            {% if scan.detected_sources %}
-                                                <p><strong>Possible AI-generated audio content detected.</strong></p>
-                                                <ul>
-                                                    {% for source in scan.detected_sources %}
-                                                    <li>
-                                                        <strong>{{ source.source }}</strong> - {{ source.confidence|floatformat:0 }}% confidence
-                                                        {% if source.indicators %}
-                                                            <br><small>Indicators: {{ source.indicators|join:", " }}</small>
-                                                        {% endif %}
-                                                    </li>
-                                                    {% endfor %}
-                                                </ul>
-                                            {% else %}
-                                                <p>No AI audio generator signatures detected.</p>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    {% endif %}
-
+                    {% if scan.forensic_analysis %}
+                        <div class="finding-card">
+                            <div class="finding-icon">
+                                {% if scan.scan_result == 'fake' %}
+                                    <i class="fas fa-exclamation-triangle text-warning"></i>
+                                {% else %}
+                                    <i class="fas fa-check-circle text-success"></i>
                                 {% endif %}
-
+                            </div>
+                            <div class="finding-content">
+                                <h5>{% if scan.scan_result == 'fake' %}Fake Content Detected{% else %}Authentic Content{% endif %}</h5>
+                                {% if scan.scan_result == 'fake' %}
+                                    <p><strong>This content is FAKE.</strong> Our analysis detected editing, filters, or AI manipulation. The image shows signs of digital alteration.</p>
+                                {% else %}
+                                    <p><strong>This content is REAL.</strong> Our analysis found no signs of editing, filters, or AI manipulation. This appears to be authentic content.</p>
+                                {% endif %}
+                            </div>
                         </div>
-                    </details>
-
-                    <!-- Technical Details (Collapsible) -->
-                    {% if scan.forensic_analysis or scan.analysis_details %}
-                    <details class="detail-section">
-                        <summary style="cursor: pointer; padding: 10px; background: rgba(0, 212, 255, 0.05); border-radius: 8px; margin-bottom: 15px;">
-                            <i class="fas fa-code"></i> <strong>View Technical Details</strong> <small>(for advanced users)</small>
-                        </summary>
-
-                        <div style="padding: 15px; background: rgba(0, 0, 0, 0.2); border-radius: 8px;">
-                        <h4 style="margin-top: 0;">Technical Metrics</h4>
-
-                        {% if scan.forensic_analysis.ela_score is not none %}
-                        <div class="analysis-item">
-                            <span class="detail-label">ELA Analysis:</span>
-                            <span class="detail-value">{{ scan.forensic_analysis.ela_score|floatformat:1 }}%</span>
-                            <span class="detail-desc">
-                                {% if scan.forensic_analysis.ela_score > 60 %}High manipulation detected{% elif scan.forensic_analysis.ela_score > 30 %}Moderate differences{% else %}Low manipulation{% endif %}
-                            </span>
-                        </div>
-                        {% endif %}
-
-                        {% if scan.forensic_analysis.has_exif is not none %}
-                        <div class="analysis-item">
-                            <span class="detail-label">Metadata:</span>
-                            <span class="detail-value">
-                                {% if scan.forensic_analysis.has_exif %}<i class="fas fa-check-circle text-success"></i> Present{% else %}<i class="fas fa-times-circle text-warning"></i> Missing{% endif %}
-                            </span>
-                            {% if scan.forensic_analysis.software_detected %}
-                            <span class="detail-desc">{{ scan.forensic_analysis.software_detected }}</span>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-
-                        {% if scan.forensic_analysis.noise_uniformity is not none %}
-                        <div class="analysis-item">
-                            <span class="detail-label">Noise Pattern:</span>
-                            <span class="detail-value">{{ scan.forensic_analysis.noise_uniformity|floatformat:2 }}</span>
-                            <span class="detail-desc">
-                                {% if scan.forensic_analysis.noise_uniformity < 0.5 %}Non-uniform (AI-like){% else %}Uniform (natural){% endif %}
-                            </span>
-                        </div>
-                        {% endif %}
-
-                        {% if scan.forensic_analysis.double_compression is not none %}
-                        <div class="analysis-item">
-                            <span class="detail-label">Compression:</span>
-                            <span class="detail-value">
-                                {% if scan.forensic_analysis.double_compression %}<i class="fas fa-exclamation-triangle text-warning"></i> Double Detected{% else %}<i class="fas fa-check-circle text-success"></i> Normal{% endif %}
-                            </span>
-                        </div>
-                        {% endif %}
-
-                        <!-- Legacy analysis details -->
-                        {% for key, value in scan.analysis_details.items %}
-                            {% if key != "source_detection" and value is not none and value is not iterable %}
-                        <div class="detail-row">
-                            <span class="detail-label">{{ key|title }}:</span>
-                            <span class="detail-value">{{ value }}</span>
-                        </div>
-                            {% endif %}
-                        {% endfor %}
-                        </div>
-                    </details>
+                    {% else %}
+                        <p><strong>No significant manipulation detected.</strong> This image appears to be original with minimal editing.</p>
                     {% endif %}
 
-                    {% if scan.forensic_match %}
-                    <div class="detail-section forensic-alert">
-                        <h4><i class="fas fa-exclamation-triangle"></i> Forensic Database Match</h4>
-                        <div class="forensic-content">
-                            {% if scan.forensic_first_seen %}
-                            <p><strong>First Seen:</strong> {{ scan.forensic_first_seen }}</p>
+                    {% if scan.forensic_analysis.has_exif is not none %}
+                    <div class="finding-card">
+                        <div class="finding-icon">
+                            {% if scan.forensic_analysis.has_exif %}
+                                <i class="fas fa-camera text-success"></i>
+                            {% else %}
+                                <i class="fas fa-question-circle text-warning"></i>
                             {% endif %}
-                            {% if scan.forensic_usage_count > 0 %}
-                            <p><strong>Usage Count:</strong> {{ scan.forensic_usage_count }} times</p>
+                        </div>
+                        <div class="finding-content">
+                            <h5>Camera Metadata Check</h5>
+                            {% if scan.forensic_analysis.has_exif %}
+                                <p><strong>Camera metadata present.</strong> This image contains camera information (device model, settings, etc.), which suggests it was captured by a real camera device.</p>
+                            {% else %}
+                                <p><strong>No camera metadata found.</strong> This image is missing the typical camera information found in authentic photos, which may indicate it was generated or processed by software.</p>
                             {% endif %}
-                            {% if scan.forensic_context %}
-                            <p><strong>Context:</strong> {{ scan.forensic_context }}</p>
+                            {% if scan.forensic_analysis.software_detected %}
+                                <p><em>Note: Software detected - {{ scan.forensic_analysis.software_detected }}</em></p>
                             {% endif %}
                         </div>
                     </div>
                     {% endif %}
-                </div>
-            </div>
 
-            <!-- Actions -->
-            <div class="result-actions">
-                <a href="{% url 'scan' %}" class="btn btn-primary">
-                    <i class="fas fa-redo"></i> Scan Another
-                </a>
+                    {% if scan.forensic_analysis.noise_uniformity is not none %}
+                    <div class="finding-card">
+                        <div class="finding-icon">
+                            {% if scan.forensic_analysis.noise_uniformity < 0.5 %}
+                                <i class="fas fa-robot text-warning"></i>
+                            {% else %}
+                                <i class="fas fa-camera-retro text-success"></i>
+                            {% endif %}
+                        </div>
+                        <div class="finding-content">
+                            <h5>Natural Pattern Analysis</h5>
+                            {% if scan.forensic_analysis.noise_uniformity < 0.5 %}
+                                <p><strong>Unusual noise patterns detected.</strong> Natural photos have consistent noise throughout, but this image shows irregular patterns that are common in AI-generated or heavily processed images.</p>
+                            {% else %}
+                                <p><strong>Natural noise patterns found.</strong> This image has the consistent noise patterns typical of authentic camera-captured photos.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
 
-                {% if not has_report %}
-                <a href="{% url 'report_scan' scan.id %}" class="btn btn-secondary">
-                    <i class="fas fa-flag"></i> Report This Content
-                </a>
-                {% else %}
-                <button class="btn btn-secondary" disabled>
-                    <i class="fas fa-check"></i> Already Reported
-                </button>
+                    {% if scan.forensic_analysis.detected_sources %}
+                    <div class="finding-card finding-ai">
+                        <div class="finding-icon">
+                            <i class="fas fa-brain text-warning"></i>
+                        </div>
+                        <div class="finding-content">
+                            <h5><i class="fas fa-robot"></i> AI Generator Detection</h5>
+                            {% if scan.forensic_analysis.detected_sources %}
+                                <p><strong>Possible AI-generated content detected.</strong></p>
+                                <ul>
+                                    {% for source in scan.forensic_analysis.detected_sources %}
+                                    <li>
+                                        <strong>{{ source.source }}</strong> - {{ source.confidence|floatformat:0 }}% confidence
+                                        {% if source.indicators %}
+                                            <br><small>Indicators: {{ source.indicators|join:", " }}</small>
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p>No AI generator signatures detected.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                {% elif scan.analysis_details.video_analysis %}
+
+                    <div class="finding-card">
+                        <div class="finding-icon">
+                            {% if scan.analysis_details.video_analysis.frame_analysis.average_score > 50 %}
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                            {% else %}
+                                <i class="fas fa-check-circle text-success"></i>
+                            {% endif %}
+                        </div>
+                        <div class="finding-content">
+                            <h5>Frame-by-Frame Analysis</h5>
+                            <p>Analyzed <strong>{{ scan.analysis_details.video_analysis.analyzed_frames }}</strong> frames from this video.</p>
+                            {% with avg_score=scan.analysis_details.video_analysis.frame_analysis.average_score %}
+                                {% if avg_score > 60 %}
+                                    <p><strong>Multiple frames show manipulation indicators.</strong> This suggests the video may have been edited or frames may have been altered.</p>
+                                {% elif avg_score > 30 %}
+                                    <p><strong>Some frames show manipulation.</strong> Certain frames in the video appear to be modified.</p>
+                                {% else %}
+                                    <p><strong>Frames appear authentic.</strong> The analyzed frames show characteristics of genuine video content.</p>
+                                {% endif %}
+                            {% endwith %}
+                        </div>
+                    </div>
+
+                    {% if scan.analysis_details.video_analysis.temporal_consistency %}
+                    <div class="finding-card">
+                        <div class="finding-icon">
+                            {% if scan.analysis_details.video_analysis.temporal_consistency.consistency_score < 60 %}
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                            {% else %}
+                                <i class="fas fa-check-circle text-success"></i>
+                            {% endif %}
+                        </div>
+                        <div class="finding-content">
+                            <h5>Temporal Consistency Check</h5>
+                            {% with consistency=scan.analysis_details.video_analysis.temporal_consistency.consistency_score %}
+                                {% if consistency < 60 %}
+                                    <p><strong>Inconsistencies detected across frames.</strong> The lighting, background, or scene elements change in ways that suggest manipulation or editing.</p>
+                                {% else %}
+                                    <p><strong>Consistent video flow detected.</strong> The video shows natural scene transitions and consistent lighting throughout.</p>
+                                {% endif %}
+                            {% endwith %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if scan.analysis_details.video_analysis.face_tracking %}
+                    <div class="finding-card">
+                        <div class="finding-icon">
+                            {% if scan.analysis_details.video_analysis.face_tracking.movement_anomalies > 2 %}
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                            {% else %}
+                                <i class="fas fa-check-circle text-success"></i>
+                            {% endif %}
+                        </div>
+                        <div class="finding-content">
+                            <h5>Face Movement Analysis</h5>
+                            <p>Detected faces in <strong>{{ scan.analysis_details.video_analysis.face_tracking.faces_detected }}</strong> out of {{ scan.analysis_details.video_analysis.analyzed_frames }} frames.</p>
+                            {% if scan.analysis_details.video_analysis.face_tracking.movement_anomalies > 2 %}
+                                <p><strong>Unnatural face movements detected.</strong> The face tracking found {{ scan.analysis_details.video_analysis.face_tracking.movement_anomalies }} instances of sudden or jerky movements, which can indicate deepfake manipulation.</p>
+                            {% else %}
+                                <p><strong>Natural face movements.</strong> Face movements appear smooth and consistent throughout the video.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if scan.analysis_details.video_analysis.motion_analysis %}
+                    <div class="finding-card">
+                        <div class="finding-icon">
+                            {% if scan.analysis_details.video_analysis.motion_analysis.frozen_frames > 3 %}
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                            {% else %}
+                                <i class="fas fa-check-circle text-success"></i>
+                            {% endif %}
+                        </div>
+                        <div class="finding-content">
+                            <h5>Motion Pattern Analysis</h5>
+                            {% if scan.analysis_details.video_analysis.motion_analysis.frozen_frames > 3 %}
+                                <p><strong>Frozen frames detected.</strong> Found {{ scan.analysis_details.video_analysis.motion_analysis.frozen_frames }} instances where the video appears frozen, which is unusual for natural video.</p>
+                            {% elif not scan.analysis_details.video_analysis.motion_analysis.motion_detected %}
+                                <p><strong>Unusually low motion.</strong> The video shows very little movement, which may indicate static content or manipulation.</p>
+                            {% else %}
+                                <p><strong>Natural motion patterns.</strong> The video shows normal movement and motion patterns.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if scan.detected_sources %}
+                    <div class="finding-card finding-ai">
+                        <div class="finding-icon">
+                            <i class="fas fa-brain text-warning"></i>
+                        </div>
+                        <div class="finding-content">
+                            <h5><i class="fas fa-robot"></i> AI Video Generator Detection</h5>
+                            {% if scan.detected_sources %}
+                                <p><strong>Possible AI-generated video content detected.</strong></p>
+                                <ul>
+                                    {% for source in scan.detected_sources %}
+                                    <li>
+                                        <strong>{{ source.source }}</strong> - {{ source.confidence|floatformat:0 }}% confidence
+                                        {% if source.indicators %}
+                                            <br><small>Indicators: {{ source.indicators|join:", " }}</small>
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p>No AI video generator signatures detected.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                {% elif scan.analysis_details.audio_analysis %}
+
+                    <div class="finding-card">
+                        <div class="finding-icon">
+                            {% if scan.analysis_details.audio_analysis.spectral_features.spectral_anomaly_score > 50 %}
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                            {% else %}
+                                <i class="fas fa-check-circle text-success"></i>
+                            {% endif %}
+                        </div>
+                        <div class="finding-content">
+                            <h5>Audio Spectral Analysis</h5>
+                            {% with spectral_score=scan.analysis_details.audio_analysis.spectral_features.spectral_anomaly_score %}
+                                {% if spectral_score > 60 %}
+                                    <p><strong>Unusual spectral characteristics detected.</strong> The frequency spectrum shows patterns common in AI-generated or synthetic voices.</p>
+                                {% else %}
+                                    <p><strong>Natural spectral patterns found.</strong> The audio shows normal frequency characteristics of human speech.</p>
+                                {% endif %}
+                            {% endwith %}
+                        </div>
+                    </div>
+
+                    {% if scan.analysis_details.audio_analysis.voice_characteristics %}
+                    <div class="finding-card">
+                        <div class="finding-icon">
+                            {% if scan.analysis_details.audio_analysis.voice_characteristics.voice_anomaly_score > 50 %}
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                            {% else %}
+                                <i class="fas fa-check-circle text-success"></i>
+                            {% endif %}
+                        </div>
+                        <div class="finding-content">
+                            <h5>Voice Characteristic Analysis</h5>
+                            {% with voice_score=scan.analysis_details.audio_analysis.voice_characteristics.voice_anomaly_score %}
+                                {% if voice_score > 60 %}
+                                    <p><strong>Potential synthetic voice detected.</strong> The voice characteristics show patterns consistent with AI voice cloning or synthesis.</p>
+                                {% elif voice_score > 30 %}
+                                    <p><strong>Some unusual voice patterns.</strong> The voice shows characteristics that may warrant further investigation.</p>
+                                {% else %}
+                                    <p><strong>Natural voice characteristics.</strong> The voice displays patterns typical of authentic human speech.</p>
+                                {% endif %}
+                            {% endwith %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if scan.detected_sources %}
+                    <div class="finding-card finding-ai">
+                        <div class="finding-icon">
+                            <i class="fas fa-brain text-warning"></i>
+                        </div>
+                        <div class="finding-content">
+                            <h5><i class="fas fa-robot"></i> AI Audio Generator Detection</h5>
+                            {% if scan.detected_sources %}
+                                <p><strong>Possible AI-generated audio content detected.</strong></p>
+                                <ul>
+                                    {% for source in scan.detected_sources %}
+                                    <li>
+                                        <strong>{{ source.source }}</strong> - {{ source.confidence|floatformat:0 }}% confidence
+                                        {% if source.indicators %}
+                                            <br><small>Indicators: {{ source.indicators|join:", " }}</small>
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p>No AI audio generator signatures detected.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
                 {% endif %}
 
-                <button onclick="window.print()" class="btn btn-outline">
-                    <i class="fas fa-print"></i> Print Report
-                </button>
-
-                <button onclick="shareResult()" class="btn btn-outline">
-                    <i class="fas fa-share"></i> Share
-                </button>
             </div>
         </div>
-    </main>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-bottom">
-                <p>&copy; 2024 VeriVision. All rights reserved.</p>
+        <!-- Technical Details (Collapsible) -->
+        {% if scan.forensic_analysis or scan.analysis_details %}
+        <details class="detail-section">
+            <summary style="cursor: pointer; padding: 10px; background: rgba(0, 212, 255, 0.05); border-radius: 8px; margin-bottom: 15px;">
+                <i class="fas fa-code"></i> <strong>View Technical Details</strong> <small>(for advanced users)</small>
+            </summary>
+
+            <div style="padding: 15px; background: rgba(0, 0, 0, 0.2); border-radius: 8px;">
+            <h4 style="margin-top: 0;">Technical Metrics</h4>
+
+            {% if scan.forensic_analysis.ela_score is not none %}
+            <div class="analysis-item">
+                <span class="detail-label">ELA Analysis:</span>
+                <span class="detail-value">{{ scan.forensic_analysis.ela_score|floatformat:1 }}%</span>
+                <span class="detail-desc">
+                    {% if scan.forensic_analysis.ela_score > 60 %}High manipulation detected{% elif scan.forensic_analysis.ela_score > 30 %}Moderate differences{% else %}Low manipulation{% endif %}
+                </span>
+            </div>
+            {% endif %}
+
+            {% if scan.forensic_analysis.has_exif is not none %}
+            <div class="analysis-item">
+                <span class="detail-label">Metadata:</span>
+                <span class="detail-value">
+                    {% if scan.forensic_analysis.has_exif %}<i class="fas fa-check-circle text-success"></i> Present{% else %}<i class="fas fa-times-circle text-warning"></i> Missing{% endif %}
+                </span>
+                {% if scan.forensic_analysis.software_detected %}
+                <span class="detail-desc">{{ scan.forensic_analysis.software_detected }}</span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if scan.forensic_analysis.noise_uniformity is not none %}
+            <div class="analysis-item">
+                <span class="detail-label">Noise Pattern:</span>
+                <span class="detail-value">{{ scan.forensic_analysis.noise_uniformity|floatformat:2 }}</span>
+                <span class="detail-desc">
+                    {% if scan.forensic_analysis.noise_uniformity < 0.5 %}Non-uniform (AI-like){% else %}Uniform (natural){% endif %}
+                </span>
+            </div>
+            {% endif %}
+
+            {% if scan.forensic_analysis.double_compression is not none %}
+            <div class="analysis-item">
+                <span class="detail-label">Compression:</span>
+                <span class="detail-value">
+                    {% if scan.forensic_analysis.double_compression %}<i class="fas fa-exclamation-triangle text-warning"></i> Double Detected{% else %}<i class="fas fa-check-circle text-success"></i> Normal{% endif %}
+                </span>
+            </div>
+            {% endif %}
+
+            {% for key, value in scan.analysis_details.items %}
+                {% if key != "source_detection" and value is not none and value is not iterable %}
+            <div class="detail-row">
+                <span class="detail-label">{{ key|title }}:</span>
+                <span class="detail-value">{{ value }}</span>
+            </div>
+                {% endif %}
+            {% endfor %}
+            </div>
+        </details>
+        {% endif %}
+
+        {% if scan.forensic_match %}
+        <div class="detail-section forensic-alert">
+            <h4><i class="fas fa-exclamation-triangle"></i> Forensic Database Match</h4>
+            <div class="forensic-content">
+                {% if scan.forensic_first_seen %}
+                <p><strong>First Seen:</strong> {{ scan.forensic_first_seen }}</p>
+                {% endif %}
+                {% if scan.forensic_usage_count > 0 %}
+                <p><strong>Usage Count:</strong> {{ scan.forensic_usage_count }} times</p>
+                {% endif %}
+                {% if scan.forensic_context %}
+                <p><strong>Context:</strong> {{ scan.forensic_context }}</p>
+                {% endif %}
             </div>
         </div>
-    </footer>
+        {% endif %}
+    </div>
+</div>
 
-    <script>
-        // Heatmap data passed from Django
-        const heatmapData = {{ heatmap_data|safe }};
+<!-- Actions -->
+<div class="result-actions">
+    <a href="{% url 'scan' %}" class="btn btn-primary">
+        <i class="fas fa-redo"></i> Scan Another
+    </a>
 
-        // Initialize heatmap on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeHeatmap();
-        });
+    {% if not has_report %}
+    <a href="{% url 'report_scan' scan.id %}" class="btn btn-secondary">
+        <i class="fas fa-flag"></i> Report This Content
+    </a>
+    {% else %}
+    <button class="btn btn-secondary" disabled>
+        <i class="fas fa-check"></i> Already Reported
+    </button>
+    {% endif %}
 
-        function initializeHeatmap() {
-            const overlay = document.getElementById('heatmapOverlay');
-            if (!overlay) return;
+    <button onclick="window.print()" class="btn btn-outline">
+        <i class="fas fa-print"></i> Print Report
+    </button>
 
-            // Clear existing hotspots
-            overlay.innerHTML = '';
+    <button onclick="shareResult()" class="btn btn-outline">
+        <i class="fas fa-share"></i> Share
+    </button>
+</div>
+{% endblock %}
 
-            // Create hotspot elements
-            if (heatmapData.hotspots && heatmapData.hotspots.length > 0) {
-                heatmapData.hotspots.forEach(hotspot => {
-                    const element = document.createElement('div');
-                    element.className = 'hotspot';
-                    element.style.left = hotspot.x + '%';
-                    element.style.top = hotspot.y + '%';
-                    element.style.width = (hotspot.radius * 2) + '%';
-                    element.style.height = (hotspot.radius * 2) + '%';
+{% block extra_js %}
+<script>
+    var heatmapData = {{ heatmap_data|safe }};
 
-                    // Set color based on intensity
-                    const intensity = hotspot.intensity;
-                    if (intensity >= 0.7) {
-                        element.style.background = 'radial-gradient(circle, rgba(239, 68, 68, 0.8) 0%, rgba(239, 68, 68, 0) 70%)';
-                    } else if (intensity >= 0.4) {
-                        element.style.background = 'radial-gradient(circle, rgba(251, 191, 36, 0.7) 0%, rgba(251, 191, 36, 0) 70%)';
-                    } else {
-                        element.style.background = 'radial-gradient(circle, rgba(34, 197, 94, 0.6) 0%, rgba(34, 197, 94, 0) 70%)';
-                    }
+    document.addEventListener('DOMContentLoaded', function() {
+        var overlay = document.getElementById('heatmapOverlay');
+        if (!overlay) return;
 
-                    overlay.appendChild(element);
-                });
-            }
+        overlay.innerHTML = '';
+        if (heatmapData.hotspots && heatmapData.hotspots.length > 0) {
+            heatmapData.hotspots.forEach(function(hotspot) {
+                var element = document.createElement('div');
+                element.className = 'hotspot';
+                element.style.left = hotspot.x + '%';
+                element.style.top = hotspot.y + '%';
+                element.style.width = (hotspot.radius * 2) + '%';
+                element.style.height = (hotspot.radius * 2) + '%';
+
+                var intensity = hotspot.intensity;
+                if (intensity >= 0.7) {
+                    element.style.background = 'radial-gradient(circle, rgba(239, 68, 68, 0.8) 0%, rgba(239, 68, 68, 0) 70%)';
+                } else if (intensity >= 0.4) {
+                    element.style.background = 'radial-gradient(circle, rgba(251, 191, 36, 0.7) 0%, rgba(251, 191, 36, 0) 70%)';
+                } else {
+                    element.style.background = 'radial-gradient(circle, rgba(34, 197, 94, 0.6) 0%, rgba(34, 197, 94, 0) 70%)';
+                }
+
+                overlay.appendChild(element);
+            });
         }
+    });
 
-        function shareResult() {
-            const url = window.location.href;
-            if (navigator.share) {
-                navigator.share({
-                    title: 'VeriVision Analysis Result',
-                    text: `Scan Result: {{ scan.scan_result|title }} - Confidence: {{ scan.confidence_score }}%`,
-                    url: url
-                });
-            } else {
-                // Fallback: copy to clipboard
-                navigator.clipboard.writeText(url).then(() => {
-                    alert('Result URL copied to clipboard!');
-                });
-            }
+    function shareResult() {
+        var url = window.location.href;
+        if (navigator.share) {
+            navigator.share({
+                title: 'VeriVision Analysis Result',
+                text: 'Scan Result: {{ scan.scan_result|title }} - Confidence: {{ scan.confidence_score }}%',
+                url: url
+            });
+        } else {
+            navigator.clipboard.writeText(url).then(function() {
+                alert('Result URL copied to clipboard!');
+            });
         }
-
-    </script>
-    <script>
-    (function(){
-        var navbar=document.getElementById('navbar'),navToggle=document.getElementById('navToggle'),navMenu=document.getElementById('navMenu'),navOverlay=document.getElementById('navOverlay');
-        if(navbar){window.addEventListener('scroll',function(){navbar.classList.toggle('scrolled',window.scrollY>30);});}
-        if(navToggle){navToggle.addEventListener('click',function(){navMenu.classList.toggle('active');navToggle.classList.toggle('active');if(navOverlay)navOverlay.classList.toggle('active');document.body.style.overflow=navMenu.classList.contains('active')?'hidden':'';});}
-        if(navOverlay){navOverlay.addEventListener('click',function(){navMenu.classList.remove('active');navToggle.classList.remove('active');navOverlay.classList.remove('active');document.body.style.overflow='';});}
-    })();
-    </script>
-</body>
-</html>
+    }
+</script>
+{% endblock %}
