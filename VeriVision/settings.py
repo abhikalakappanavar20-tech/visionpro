@@ -124,9 +124,12 @@ STATICFILES_DIRS = [
 ]
 # WhiteNoise will use its default storage
 
-# Media files
+# Media files - use /tmp on Vercel (read-only /var/task elsewhere)
+import os as _os
 MEDIA_URL = 'media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = _os.environ.get('MEDIA_ROOT', str(BASE_DIR / 'media'))
+if _os.environ.get('VERCEL'):
+    MEDIA_ROOT = '/tmp/media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

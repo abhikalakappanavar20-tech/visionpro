@@ -18,9 +18,13 @@ from django.core.management import call_command
 django.setup()
 call_command('migrate', '--noinput', verbosity=1)
 
-# Ensure cache dirs exist
+# Ensure cache and media dirs exist
 for key in ('HF_HOME', 'TORCH_HOME', 'MPLCONFIGDIR'):
     os.makedirs(os.environ[key], exist_ok=True)
+os.makedirs('/tmp/media/images', exist_ok=True)
+os.makedirs('/tmp/media/videos', exist_ok=True)
+os.makedirs('/tmp/media/audio', exist_ok=True)
+os.makedirs('/tmp/media/uploads', exist_ok=True)
 
 from VeriVision.wsgi import application
 
