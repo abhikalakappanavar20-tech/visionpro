@@ -17,8 +17,12 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# Models directory
-MODELS_DIR = Path(__file__).resolve().parent.parent / 'ml_models'
+# Use HF_HOME env (set to /tmp on Vercel) or fallback to project dir
+_MODELS_DIR_ENV = os.environ.get('HF_HOME')
+if _MODELS_DIR_ENV:
+    MODELS_DIR = Path(_MODELS_DIR_ENV) / 'models'
+else:
+    MODELS_DIR = Path(__file__).resolve().parent.parent / 'ml_models'
 
 # HuggingFace repo IDs
 IMAGE_MODEL_REPO = 'abraraltaf92/deepfake-detection-models'
