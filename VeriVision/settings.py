@@ -71,9 +71,11 @@ WSGI_APPLICATION = 'VeriVision.wsgi.application'
 
 import dj_database_url
 
+_db_path = "/tmp/db.sqlite3" if os.environ.get("VERCEL") else str(BASE_DIR / "db.sqlite3")
+
 DATABASES = {
     'default': dj_database_url.config(
-        default="sqlite://",
+        default=f"sqlite:///{_db_path}",
         conn_max_age=600,
         conn_health_checks=True,
     )
